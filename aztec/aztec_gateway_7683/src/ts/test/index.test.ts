@@ -49,7 +49,7 @@ const setupSandbox = async () => {
   return pxe
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+// const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const setup = async ({ admin, pxe, receiver }: { admin: AccountWallet; pxe: PXE; receiver: AccountWallet }) => {
   const gatewaySecretKey = Fr.random()
@@ -107,15 +107,12 @@ describe("AztecGateway7683", () => {
     }*/
 
     logger = createLogger("aztec:aztec-starter:aztec_gateway_7683")
-
     pxe = await setupSandbox()
     wallets = await getInitialTestAccountsWallets(pxe)
 
     const nodeInfo = await pxe.getNodeInfo()
     const chain = createEthereumChain(["http://localhost:8545"], nodeInfo.l1ChainId)
-
     publicClient = createExtendedL1Client(chain.rpcUrls, MNEMONIC, chain.chainInfo)
-
     const l1Contracts = (await pxe.getNodeInfo()).l1ContractAddresses
     const rollup = new RollupContract(publicClient, l1Contracts.rollupAddress)
     version = await rollup.getVersion()
@@ -444,12 +441,12 @@ describe("AztecGateway7683", () => {
       content.toBuffer(),
     ])
 
-    const filledOrderBlockNumber = await gateway.methods
-      .get_filled_order_block_number(Array.from(hexToBytes(orderId)))
+    const orderSettlementBlockNumber = await gateway.methods
+      .get_order_settlement_block_number(Array.from(hexToBytes(orderId)))
       .simulate()
 
     const [l2ToL1MessageIndex, siblingPath] = await pxe.getL2ToL1MembershipWitness(
-      parseInt(filledOrderBlockNumber),
+      parseInt(orderSettlementBlockNumber),
       l2ToL1Message,
     )
 
@@ -495,24 +492,15 @@ describe("AztecGateway7683", () => {
         DATA,
       ],
     )
-
     const orderId = sha256(originData)
     const fillerData = filler.getAddress().toString()
 
-    await (
-      await filler.setPublicAuthWit(
-        {
-          caller: gateway.address,
-          action: token
-            .withWallet(filler)
-            .methods.transfer_in_public(filler.getAddress(), gateway.address, amountOut, 0),
-        },
-        true,
-      )
-    )
-      .send()
-      .wait()
-
+    const witness = await filler.createAuthWit({
+      caller: gateway.address,
+      action: token
+        .withWallet(filler)
+        .methods.transfer_in_private(filler.getAddress(), gateway.address, amountOut, nonce),
+    })
     const fromBlock = await pxe.getBlockNumber()
     await gateway
       .withWallet(filler)
@@ -521,9 +509,11 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(originData)),
         Array.from(hexToBytes(fillerData)),
       )
+      .with({
+        authWitnesses: [witness],
+      })
       .send()
       .wait()
-
     const { logs } = await pxe.getPublicLogs({
       fromBlock: fromBlock - 1,
       toBlock: fromBlock + 2,
@@ -545,6 +535,10 @@ describe("AztecGateway7683", () => {
       .send()
       .wait()
 
+    const orderSettlementBlockNumber = await gateway.methods
+      .get_order_settlement_block_number(Array.from(hexToBytes(orderId)))
+      .simulate()
+
     const content = sha256ToField([
       Buffer.from(SETTLE_ORDER_TYPE.slice(2), "hex"),
       Buffer.from(orderId.slice(2), "hex"),
@@ -559,12 +553,8 @@ describe("AztecGateway7683", () => {
       content.toBuffer(),
     ])
 
-    const filledOrderBlockNumber = await gateway.methods
-      .get_filled_order_block_number(Array.from(hexToBytes(orderId)))
-      .simulate()
-
     const [l2ToL1MessageIndex, siblingPath] = await pxe.getL2ToL1MembershipWitness(
-      parseInt(filledOrderBlockNumber),
+      parseInt(orderSettlementBlockNumber),
       l2ToL1Message,
     )
 
