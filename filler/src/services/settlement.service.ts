@@ -237,12 +237,12 @@ class SettlementService extends BaseService {
         AztecAddress.fromString(this.aztecGatewayAddress),
         this.aztecWallet,
       )
-      const filledOrderBlockNumber = await gateway.methods
-        .get_filled_order_block_number(hexToUintArray(order.orderId))
+      const orderSettlementBlockNumber = await gateway.methods
+        .get_order_settlement_block_number(hexToUintArray(order.orderId))
         .simulate()
 
       const [l2ToL1MessageIndex, siblingPath] = await this.pxe.getL2ToL1MembershipWitness(
-        parseInt(filledOrderBlockNumber),
+        parseInt(orderSettlementBlockNumber),
         l2ToL1Message,
       )
 
@@ -259,7 +259,7 @@ class SettlementService extends BaseService {
             messageHash.toString(),
           ],
           bytesToHex(Buffer.concat([...message])),
-          filledOrderBlockNumber,
+          orderSettlementBlockNumber,
           l2ToL1MessageIndex,
           [padHex("0x00")],
         ],

@@ -1,5 +1,5 @@
 import { erc20Abi, padHex, sliceHex } from "viem"
-import { AztecAddress } from "@aztec/aztec.js"
+import { AztecAddress, Fr } from "@aztec/aztec.js"
 import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
 import { Mutex } from "async-mutex"
 import { waitForTransactionReceipt } from "viem/actions"
@@ -247,22 +247,6 @@ class OrderService extends BaseService {
         AztecGateway7683Contract.at(AztecAddress.fromString(this.aztecGatewayAddress), this.aztecWallet),
       ])
 
-      this.logger.info(`setting public authwit to fill the order ${orderId} ...`)
-      // @ts-ignore
-      const res = await this.aztecWallet.setPublicAuthWit(
-        {
-          caller: AztecAddress.fromString(this.aztecGatewayAddress),
-          action: token.methods.transfer_in_public(
-            this.aztecWallet.getAddress(),
-            AztecAddress.fromString(this.aztecGatewayAddress),
-            maxSpentAmount,
-            0,
-          ),
-        },
-        true,
-      )
-      await res.send().wait()
-
       const orderType = `0x${originData.slice(538, 540)}`
       const orderStatus = orderType === PRIVATE_ORDER_HEX ? ORDER_STATUS_INITIATED_PRIVATELY : ORDER_STATUS_FILLED
 
@@ -270,12 +254,45 @@ class OrderService extends BaseService {
       let receipt
       if (orderStatus === ORDER_STATUS_INITIATED_PRIVATELY) {
         this.logger.info(`filling the private order ${orderId} ...`)
+
+        const nonce = `0x${originData.slice(386, 450)}`
+        const gatewayAddress = AztecAddress.fromString(this.aztecGatewayAddress)
+        const witness = await this.aztecWallet.createAuthWit({
+          caller: gatewayAddress,
+          action: token
+            .withWallet(this.aztecWallet)
+            .methods.transfer_in_private(
+              this.aztecWallet.getAddress(),
+              gatewayAddress,
+              maxSpentAmount,
+              Fr.fromHexString(nonce),
+            ),
+        })
         receipt = await aztecGateway
           .withWallet(this.aztecWallet)
           .methods.fill_private(hexToUintArray(orderId), hexToUintArray(originData), hexToUintArray(fillerData))
+          .with({
+            authWitnesses: [witness],
+          })
           .send()
           .wait()
       } else {
+        this.logger.info(`setting public authwit to fill the order ${orderId} ...`)
+        // @ts-ignore
+        const res = await this.aztecWallet.setPublicAuthWit(
+          {
+            caller: AztecAddress.fromString(this.aztecGatewayAddress),
+            action: token.methods.transfer_in_public(
+              this.aztecWallet.getAddress(),
+              AztecAddress.fromString(this.aztecGatewayAddress),
+              maxSpentAmount,
+              0,
+            ),
+          },
+          true,
+        )
+        await res.send().wait()
+
         this.logger.info(`filling the public order ${orderId} ...`)
         receipt = await aztecGateway
           .withWallet(this.aztecWallet)
