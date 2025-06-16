@@ -308,8 +308,8 @@ pub contract AztecGateway7683 {
     }
 
     #[public]
-    fn open(/*order: OnchainCrossChainOrder*/) {
-        /*assert(order.order_data_type == ORDER_DATA_TYPE, "Invalid data type");
+    fn open(order: OnchainCrossChainOrder) {
+        assert(order.order_data_type == ORDER_DATA_TYPE, "Invalid data type");
 
         let data = _resolve(order, context.msg_sender(), context.timestamp() as u32);
         let resolved_order = data.resolved_cross_chain_order;
@@ -341,7 +341,7 @@ pub contract AztecGateway7683 {
 
         let event = Open::new(resolved_order.order_id, resolved_order.serialize());
         context.emit_public_log(event.open1.pack());
-        context.emit_public_log(event.open2.pack());*/
+        context.emit_public_log(event.open2.pack());
     }
 
     #[private]
