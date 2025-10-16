@@ -12,9 +12,11 @@ pub struct Filled {
 }
 
 // 301 + 32 + 32 = 365      365 / 31 = 11.74 = 12 + 1 (residual bytes) = 13
-impl Packable<13> for Filled {
-    fn pack(self) -> [Field; 13] {
-        let mut packed = [0; 13];
+impl Packable for Filled {
+    let N: u32 = 13;
+    
+    fn pack(self) -> [Field; Self::N] {
+        let mut packed: [Field; 13] = [0; 13];
         let mut residual_bytes = [0; 31];
 
         let mut order_id_31 = [0; 31];
@@ -50,7 +52,7 @@ impl Packable<13> for Filled {
         packed
     }
 
-    fn unpack(fields: [Field; 13]) -> Self {
+    fn unpack(fields: [Field; Self::N]) -> Self {
         assert(true == false, "not implemented");
         Self { order_id: [0; 32], origin_data: [0; ORDER_DATA_LENGTH], filler_data: [0; 32] }
     }
@@ -63,9 +65,11 @@ pub struct Open1 {
     pub resolved_order: [u8; 340],
 }
 
-impl Packable<13> for Open1 {
-    fn pack(self) -> [Field; 13] {
-        let mut packed = [0; 13];
+impl Packable for Open1 {
+    let N: u32 = 13;
+    
+    fn pack(self) -> [Field; Self::N] {
+        let mut packed: [Field; 13] = [0; 13];
         let mut residual_bytes = [0; 31];
 
         let mut order_id_31 = [0; 31];
@@ -97,7 +101,7 @@ impl Packable<13> for Open1 {
         packed
     }
 
-    fn unpack(fields: [Field; 13]) -> Self {
+    fn unpack(fields: [Field; Self::N]) -> Self {
         assert(true == false, "not implemented");
         Self { order_id: [0; 32], resolved_order: [0; 340] }
     }
@@ -110,9 +114,11 @@ pub struct Open2 {
     pub resolved_order: [u8; 273],
 }
 
-impl Packable<11> for Open2 {
-    fn pack(self) -> [Field; 11] {
-        let mut packed = [0; 11];
+impl Packable for Open2 {
+    let N: u32 = 11;
+    
+    fn pack(self) -> [Field; Self::N] {
+        let mut packed: [Field; 11] = [0; 11];
         let mut residual_bytes = [0; 31];
 
         let mut order_id_31 = [0; 31];
@@ -144,7 +150,7 @@ impl Packable<11> for Open2 {
         packed
     }
 
-    fn unpack(fields: [Field; 11]) -> Self {
+    fn unpack(fields: [Field; Self::N]) -> Self {
         assert(true == false, "not implemented");
         Self { order_id: [0; 32], resolved_order: [0; 273] }
     }
@@ -180,9 +186,11 @@ pub struct Settled {
     pub receiver: [u8; 32],
 }
 
-impl Packable<3> for Settled {
-    fn pack(self) -> [Field; 3] {
-        let mut packed = [0; 3];
+impl Packable for Settled {
+    let N: u32 = 3;
+    
+    fn pack(self) -> [Field; Self::N] {
+        let mut packed: [Field; 3] = [0; 3];
         let mut residual_bytes = [0; 31];
 
         let mut order_id_31 = [0; 31];
@@ -200,7 +208,7 @@ impl Packable<3> for Settled {
         packed
     }
 
-    fn unpack(fields: [Field; 3]) -> Self {
+    fn unpack(fields: [Field; Self::N]) -> Self {
         assert(true == false, "not implemented");
         Self { order_id: [0; 32], receiver: [0; 32] }
     }

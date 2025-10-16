@@ -1,9 +1,9 @@
-use dep::aztec::{prelude::{AztecAddress, EthAddress}, protocol_types::traits::FromField};
+use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, traits::FromField};
 
 pub(crate) fn u8_32_to_u128(input: [u8; 32]) -> u128 {
     let mut result = 0u128;
     for i in 0..16 {
-        result += (input[31 - i] as u128) << ((i * 8) as u8);
+        result += (input[31 - i] as u128) << ((i * 8) as u128);
     }
     result
 }
@@ -15,11 +15,15 @@ pub(crate) fn u8_4_to_u32(bytes: [u8; 4]) -> u32 {
 }
 
 pub(crate) fn u8_32_to_aztec_address(bytes: [u8; 32]) -> AztecAddress {
-    AztecAddress::from_field(Field::from_be_bytes(bytes))
+    let field = Field::from_be_bytes(bytes);
+    field.assert_max_bit_size::<253>();
+    AztecAddress::from_field(field)
 }
 
 pub(crate) fn u8_32_to_eth_address(bytes: [u8; 32]) -> EthAddress {
-    EthAddress::from_field(Field::from_be_bytes(bytes))
+    let field = Field::from_be_bytes(bytes);
+    field.assert_max_bit_size::<253>();
+    EthAddress::from_field(field)
 }
 
 pub(crate) fn u32_to_u8_4(x: u32) -> [u8; 4] {

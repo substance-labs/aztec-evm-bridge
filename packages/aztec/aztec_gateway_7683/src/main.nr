@@ -47,8 +47,12 @@ pub contract AztecGateway7683 {
     };
     use dep::aztec::{
         macros::{functions::{initializer, internal, private, public, view}, storage::storage},
-        prelude::{AztecAddress, EthAddress, Map, PublicImmutable, PublicMutable},
-        protocol_types::{hash::{poseidon2_hash, sha256_to_field}, traits::{Packable, Serialize}},
+        protocol_types::{
+            address::{AztecAddress, EthAddress},
+            hash::{poseidon2_hash, sha256_to_field},
+            traits::{Packable, Serialize},
+        },
+        state_vars::{Map, PublicImmutable, PublicMutable},
     };
     use token::Token;
 
@@ -100,7 +104,7 @@ pub contract AztecGateway7683 {
         // transfer from gateway public balance to user private balance
         let token = u8_32_to_aztec_address(order_data.output_token);
         let partial_note = Token::at(token)
-            .prepare_private_balance_increase(context.msg_sender(), context.msg_sender())
+            .prepare_private_balance_increase(context.msg_sender())
             .call(&mut context);
         Token::at(token)
             .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_out), partial_note)
@@ -207,7 +211,7 @@ pub contract AztecGateway7683 {
 
         let token = u8_32_to_aztec_address(order_data.input_token);
         let partial_note = Token::at(token)
-            .prepare_private_balance_increase(context.msg_sender(), context.msg_sender())
+            .prepare_private_balance_increase(context.msg_sender())
             .call(&mut context);
         Token::at(token)
             .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_in), partial_note)
@@ -493,7 +497,7 @@ pub contract AztecGateway7683 {
         let filler = u8_32_to_aztec_address(filler_data_bytes);
         let token = u8_32_to_aztec_address(order_data.input_token);
         let partial_note =
-            Token::at(token).prepare_private_balance_increase(filler, filler).call(&mut context);
+            Token::at(token).prepare_private_balance_increase(filler).call(&mut context);
         Token::at(token)
             .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_in), partial_note)
             .enqueue(&mut context);
