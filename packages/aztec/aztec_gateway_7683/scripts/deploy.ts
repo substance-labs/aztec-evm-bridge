@@ -34,6 +34,7 @@ const main = async () => {
     EthAddress.fromString(forwarderAddress),
   )
     .send({
+      from: wallet.getAddress(),
       fee: { paymentMethod },
     })
     .deployed({
