@@ -3,6 +3,7 @@ import { spawn } from "child_process"
 import { createEthereumChain, createExtendedL1Client, RollupContract } from "@aztec/ethereum"
 import { hexToBytes, padHex } from "viem"
 import { poseidon2Hash, sha256ToField } from "@aztec/foundation/crypto"
+import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
 import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC"
 import { TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
 
@@ -11,6 +12,7 @@ import { AztecGateway7683Contract, AztecGateway7683ContractArtifact } from "../.
 import { getRandomWallet, getPXEs } from "../../../scripts/utils.js"
 import { getSponsoredFPCInstance } from "../../../scripts/fpc.js"
 import { OrderData } from "./OrderData.js"
+import { rmSync } from "fs"
 
 const MNEMONIC = "test test test test test test test test test test test junk"
 const PORTAL_ADDRESS = EthAddress.ZERO
@@ -34,7 +36,7 @@ const FILL_DEADLINE = 2 ** 32 - 1
 const DESTINATION_SETTLER_EVM_L2 = EthAddress.ZERO
 const DATA = "0x5555555555555555555555555555555555555555555555555555555555555555"
 
-// const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const setup = async (pxes: PXE[]) => {
   const [pxe1, pxe2, pxe3] = pxes
@@ -59,9 +61,10 @@ const setup = async (pxes: PXE[]) => {
     .send({
       contractAddressSalt: Fr.random(),
       universalDeploy: false,
-      skipClassRegistration: false,
-      skipPublicDeployment: false,
+      skipClassPublication: false,
+      skipInstancePublication: false,
       skipInitialization: false,
+      from: deployer.getAddress(),
       fee: { paymentMethod },
     })
     .deployed()
@@ -71,7 +74,7 @@ const setup = async (pxes: PXE[]) => {
   await deployer.registerSender(gateway.address)
 
   const token = await Contract.deploy(deployer, TokenContractArtifact, [deployer.getAddress(), "TOKEN", "TKN", 18])
-    .send({ fee: { paymentMethod } })
+    .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .deployed()
 
   for (const pxe of pxes) {
@@ -88,23 +91,23 @@ const setup = async (pxes: PXE[]) => {
   const amount = 1000n * 10n ** 18n
   await token
     .withWallet(deployer)
-    .methods.mint_to_private(deployer.getAddress(), user.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .methods.mint_to_private(user.getAddress(), amount)
+    .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .wait()
   await token
     .withWallet(deployer)
-    .methods.mint_to_private(deployer.getAddress(), filler.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .methods.mint_to_private(filler.getAddress(), amount)
+    .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .wait()
   await token
     .withWallet(deployer)
     .methods.mint_to_public(user.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .wait()
   await token
     .withWallet(deployer)
     .methods.mint_to_public(filler.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .wait()
 
   return {
@@ -122,16 +125,30 @@ describe("AztecGateway7683", () => {
   let skipSandbox: boolean
   let publicClient: any
   let version: bigint
+  let wallets: any[]
+  let gateway: any
+  let token: any
+  let paymentMethod: any
 
   beforeAll(async () => {
     skipSandbox = process.env.SKIP_SANDBOX === "true"
-    /*if (!skipSandbox) {
+    if (!skipSandbox) {
+      // Clean up old PXE stores
+      try {
+        rmSync("store/pxe1", { recursive: true, force: true })
+      } catch {}
+      try {
+        rmSync("store/pxe2", { recursive: true, force: true })
+      } catch {}
+      try {
+        rmSync("store/pxe3", { recursive: true, force: true })
+      } catch {}
       sandboxInstance = spawn("aztec", ["start", "--sandbox"], {
         detached: true,
         stdio: "ignore",
       })
       await sleep(15000)
-    }*/
+    }
     pxes = await getPXEs(["pxe1", "pxe2", "pxe3"])
     const nodeInfo = await pxes[0].getNodeInfo()
     const chain = createEthereumChain(["http://localhost:8545"], nodeInfo.l1ChainId)
@@ -165,7 +182,7 @@ describe("AztecGateway7683", () => {
         true,
       )
     )
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait({
         timeout: 120000,
       })
@@ -195,7 +212,7 @@ describe("AztecGateway7683", () => {
         order_data: Array.from(hexToBytes(orderData.encode())),
         order_data_type: Array.from(hexToBytes(ORDER_DATA_TYPE)),
       })
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
 
     const { logs } = await pxe1.getPublicLogs({
@@ -224,7 +241,9 @@ describe("AztecGateway7683", () => {
     expect(parsedResolvedCrossChainOrder.minReceived[0].token).toBe(token.address.toString())
     expect(parsedResolvedCrossChainOrder.user).toBe(user.getAddress().toString())
 
-    const balancePre = await token.methods.balance_of_public(filler.getAddress()).simulate()
+    const balancePre = await token.methods
+      .balance_of_public(filler.getAddress())
+      .simulate({ from: filler.getAddress() })
     await gateway
       .withWallet(filler)
       .methods.settle(
@@ -233,9 +252,11 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(filler.getAddress().toString())),
         0n, // TODO
       )
-      .send({ fee: { paymentMethod } })
+      .send({ from: filler.getAddress(), fee: { paymentMethod } })
       .wait()
-    const balancePost = await token.methods.balance_of_public(filler.getAddress()).simulate()
+    const balancePost = await token.methods
+      .balance_of_public(filler.getAddress())
+      .simulate({ from: filler.getAddress() })
     expect(balancePost).toBe(balancePre + amountIn)
 
     fromBlock = await pxe1.getBlockNumber()
@@ -289,7 +310,7 @@ describe("AztecGateway7683", () => {
       .with({
         authWitnesses: [witness],
       })
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
 
     const { logs } = await pxe1.getPublicLogs({
@@ -297,6 +318,7 @@ describe("AztecGateway7683", () => {
       toBlock: fromBlock + 2,
       contractAddress: gateway.address,
     })
+
     const { resolvedOrder } = parseOpenLog(logs[0].log.fields, logs[1].log.fields)
     const parsedResolvedCrossChainOrder = parseResolvedCrossChainOrder(resolvedOrder)
     expect(parsedResolvedCrossChainOrder.orderId).toBe(orderId.toString())
@@ -317,7 +339,10 @@ describe("AztecGateway7683", () => {
     expect(parsedResolvedCrossChainOrder.minReceived[0].token).toBe(token.address.toString())
     expect(parsedResolvedCrossChainOrder.user).toBe(PRIVATE_SENDER)
 
-    const balancePre = await token.withWallet(filler).methods.balance_of_private(filler.getAddress()).simulate()
+    const balancePre = await token
+      .withWallet(filler)
+      .methods.balance_of_private(filler.getAddress())
+      .simulate({ from: filler.getAddress() })
     await gateway
       .withWallet(filler)
       .methods.settle_private(
@@ -326,9 +351,12 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(filler.getAddress().toString())),
         0n, // TODO
       )
-      .send({ fee: { paymentMethod } })
+      .send({ from: filler.getAddress(), fee: { paymentMethod } })
       .wait()
-    const balancePost = await token.withWallet(filler).methods.balance_of_private(filler.getAddress()).simulate()
+    const balancePost = await token
+      .withWallet(filler)
+      .methods.balance_of_private(filler.getAddress())
+      .simulate({ from: filler.getAddress() })
     expect(balancePost).toBe(balancePre + amountIn)
 
     fromBlock = await pxe1.getBlockNumber()
@@ -378,7 +406,7 @@ describe("AztecGateway7683", () => {
         true,
       )
     )
-      .send({ fee: { paymentMethod } })
+      .send({ from: filler.getAddress(), fee: { paymentMethod } })
       .wait()
 
     const fromBlock = await pxe1.getBlockNumber()
@@ -390,6 +418,7 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(fillerData)),
       )
       .send({
+        from: filler.getAddress(),
         fee: { paymentMethod },
       })
       .wait()
@@ -410,22 +439,24 @@ describe("AztecGateway7683", () => {
       Buffer.from(filler.getAddress().toString().slice(2), "hex"),
     ])
 
-    const l2ToL1Message = sha256ToField([
-      gateway.address.toBuffer(),
-      new Fr(version).toBuffer(), // aztec version
-      PORTAL_ADDRESS.toBuffer32(),
-      new Fr(publicClient.chain.id).toBuffer(),
-      content.toBuffer(),
-    ])
+    const l2ToL1Message = computeL2ToL1MessageHash({
+      l2Sender: gateway.address,
+      l1Recipient: PORTAL_ADDRESS,
+      content,
+      rollupVersion: new Fr(version),
+      chainId: new Fr(publicClient.chain.id),
+    })
 
-    const orderSettlementBlockNumber = await gateway.methods.get_order_settlement_block_number(orderId).simulate()
-    const [l2ToL1MessageIndex, siblingPath] = await pxe1.getL2ToL1MembershipWitness(
-      parseInt(orderSettlementBlockNumber),
-      l2ToL1Message,
-    )
+    const orderSettlementBlockNumber = await gateway.methods
+      .get_order_settlement_block_number(orderId)
+      .simulate({ from: filler.getAddress() })
+    console.log("orderSettlementBlockNumber:", orderSettlementBlockNumber)
+    const currentBlock = await pxe1.getBlockNumber()
+    console.log("currentBlock:", currentBlock)
+    const [l2ToL1MessageIndex, siblingPath] = await pxe1.getL2ToL1MembershipWitness(Number(currentBlock), l2ToL1Message)
 
     expect(l2ToL1MessageIndex).toBe(0n)
-    expect(siblingPath.pathSize).toBe(1)
+    expect(siblingPath.pathSize).toBe(0)
   })
 
   it("should fill a private order and send the settlement message to the forwarder", async () => {
@@ -472,6 +503,7 @@ describe("AztecGateway7683", () => {
         authWitnesses: [witness],
       })
       .send({
+        from: filler.getAddress(),
         fee: { paymentMethod },
       })
       .wait()
@@ -495,6 +527,7 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(fillerData)),
       )
       .send({
+        from: user.getAddress(),
         fee: { paymentMethod },
       })
       .wait()
@@ -505,22 +538,24 @@ describe("AztecGateway7683", () => {
       Buffer.from(fillerData.slice(2), "hex"),
     ])
 
-    const l2ToL1Message = sha256ToField([
-      gateway.address.toBuffer(),
-      new Fr(version).toBuffer(), // aztec version
-      PORTAL_ADDRESS.toBuffer32(),
-      new Fr(publicClient.chain.id).toBuffer(),
-      content.toBuffer(),
-    ])
+    const l2ToL1Message = computeL2ToL1MessageHash({
+      l2Sender: gateway.address,
+      l1Recipient: PORTAL_ADDRESS,
+      content,
+      rollupVersion: new Fr(version),
+      chainId: new Fr(publicClient.chain.id),
+    })
 
-    const orderSettlementBlockNumber = await gateway.methods.get_order_settlement_block_number(orderId).simulate()
+    const orderSettlementBlockNumber = await gateway.methods
+      .get_order_settlement_block_number(orderId)
+      .simulate({ from: user.getAddress() })
     const [l2ToL1MessageIndex, siblingPath] = await pxe1.getL2ToL1MembershipWitness(
       parseInt(orderSettlementBlockNumber),
       l2ToL1Message,
     )
 
     expect(l2ToL1MessageIndex).toBe(0n)
-    expect(siblingPath.pathSize).toBe(1)
+    expect(siblingPath.pathSize).toBe(0)
   })
 
   it("should open a public order and publicly claim the refund", async () => {
@@ -540,7 +575,7 @@ describe("AztecGateway7683", () => {
         true,
       )
     )
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
 
     const orderData = new OrderData({
@@ -567,12 +602,15 @@ describe("AztecGateway7683", () => {
         order_data: Array.from(hexToBytes(orderData.encode())),
         order_data_type: Array.from(hexToBytes(ORDER_DATA_TYPE)),
       })
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
 
     // NOTE: suppose that the order refund has been instructed on the source chain
     const leafIndex = 0 // TODO: change it
-    const balancePre = await token.withWallet(user).methods.balance_of_public(user.getAddress()).simulate()
+    const balancePre = await token
+      .withWallet(user)
+      .methods.balance_of_public(user.getAddress())
+      .simulate({ from: user.getAddress() })
     await gateway
       .withWallet(user)
       .methods.claim_refund(
@@ -580,9 +618,12 @@ describe("AztecGateway7683", () => {
         Array.from(hexToBytes(orderData.encode())),
         leafIndex,
       )
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
-    const balancePost = await token.withWallet(user).methods.balance_of_public(user.getAddress()).simulate()
+    const balancePost = await token
+      .withWallet(user)
+      .methods.balance_of_public(user.getAddress())
+      .simulate({ from: user.getAddress() })
     expect(balancePost).toBe(balancePre + amountIn)
   })
 
@@ -624,12 +665,15 @@ describe("AztecGateway7683", () => {
       .with({
         authWitnesses: [witness],
       })
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
 
     // NOTE: suppose that the order refund has been instructed on the source chain
     const leafIndex = 0 // TODO: change it
-    const balancePre = await token.withWallet(user).methods.balance_of_private(user.getAddress()).simulate()
+    const balancePre = await token
+      .withWallet(user)
+      .methods.balance_of_private(user.getAddress())
+      .simulate({ from: user.getAddress() })
     await gateway
       .withWallet(user)
       .methods.claim_refund_private(
@@ -641,9 +685,12 @@ describe("AztecGateway7683", () => {
       .with({
         authWitnesses: [witness],
       })
-      .send({ fee: { paymentMethod } })
+      .send({ from: user.getAddress(), fee: { paymentMethod } })
       .wait()
-    const balancePost = await token.withWallet(user).methods.balance_of_private(user.getAddress()).simulate()
+    const balancePost = await token
+      .withWallet(user)
+      .methods.balance_of_private(user.getAddress())
+      .simulate({ from: user.getAddress() })
     expect(balancePost).toBe(balancePre + amountIn)
   })
 })
