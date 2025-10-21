@@ -8,7 +8,7 @@
   "scripts": {
     "clean": "rm -rf ./src/artifacts ./target",
     "codegen": "aztec codegen target --outdir src/artifacts",
-    "postprocess": "aztec-postprocess-contract target --outdir src/artifacts",
+    "postprocess": "aztec-postprocess-contract",
     "compile": "${AZTEC_NARGO:-aztec-nargo} compile",
     "deploy": "node --loader ts-node/esm scripts/deploy.ts",
     "format": "prettier --write \"src/ts/**/*.ts\" \"scripts/**/*.ts\"",
@@ -21,12 +21,12 @@
     "update-readme-version": "node ./.github/scripts/update-readme-version.js"
   },
   "dependencies": {
-    "@aztec/accounts": "2.1.0-rc.6",
-    "@aztec/aztec.js": "2.1.0-rc.6",
-    "@aztec/kv-store": "2.1.0-rc.6",
-    "@aztec/noir-contracts.js": "2.1.0-rc.6",
-    "@aztec/pxe": "2.1.0-rc.6",
-    "@aztec/stdlib": "2.1.0-rc.6",
+    "@aztec/accounts": "2.1.0-rc.14",
+    "@aztec/aztec.js": "2.1.0-rc.14",
+    "@aztec/kv-store": "2.1.0-rc.14",
+    "@aztec/noir-contracts.js": "2.1.0-rc.14",
+    "@aztec/pxe": "2.1.0-rc.14",
+    "@aztec/stdlib": "2.1.0-rc.14",
     "viem": "^2.23.13"
   },
   "devDependencies": {
@@ -42,7 +42,7 @@
   },
   "resolutions": {
     "jackspeak": "2.1.1",
-    "@aztec/foundation": "2.1.0-rc.6"
+    "@aztec/foundation": "2.1.0-rc.14"
   },
   "jest": {
     "testTimeout": 200000
