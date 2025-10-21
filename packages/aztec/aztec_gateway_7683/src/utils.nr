@@ -16,13 +16,11 @@ pub(crate) fn u8_4_to_u32(bytes: [u8; 4]) -> u32 {
 
 pub(crate) fn u8_32_to_aztec_address(bytes: [u8; 32]) -> AztecAddress {
     let field = Field::from_be_bytes(bytes);
-    field.assert_max_bit_size::<253>();
     AztecAddress::from_field(field)
 }
 
 pub(crate) fn u8_32_to_eth_address(bytes: [u8; 32]) -> EthAddress {
     let field = Field::from_be_bytes(bytes);
-    field.assert_max_bit_size::<253>();
     EthAddress::from_field(field)
 }
 
