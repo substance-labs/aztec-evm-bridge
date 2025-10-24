@@ -35,7 +35,7 @@ Before running the above command make sure to run the following commands:
 
 ```bash
 # Navigate to the Aztec monorepo
-cd ~/nargo/github.com/AztecProtocol/aztec-packages/v1.1.3/noir-projects/noir-contracts/
+cd ~/nargo/github.com/AztecProtocol/aztec-packages/v2.1.0/noir-projects/noir-contracts/
 
 # Compile the token_contract package
 aztec-nargo compile --package token_contract
@@ -43,7 +43,7 @@ aztec-nargo compile --package token_contract
 # Return to the root of the project directory
 
 # Copy the compiled artifact back to your project
-cp ~/nargo/github.com/AztecProtocol/aztec-packages/v1.1.3/noir-projects/noir-contracts/target/token_contract-Token.json ./target/token_contract-Token.json
+cp ~/nargo/github.com/AztecProtocol/aztec-packages/v2.1.0/noir-projects/noir-contracts/target/token_contract-Token.json ./target/token_contract-Token.json
 ```
 
 
@@ -51,7 +51,20 @@ cp ~/nargo/github.com/AztecProtocol/aztec-packages/v1.1.3/noir-projects/noir-con
 
 ```bash
 aztec-nargo compile
+aztec-postprocess-contract
 aztec codegen target --outdir src/artifacts
+```
+
+### Deploy
+
+```bash
+NODE_NO_WARNINGS=1 node --loader ts-node/esm scripts/deploy \
+  0xYOUR_AZTEC_SECRET_KEY \
+  0xYOUR_AZTEC_SALT \ 
+  0xl2Gateway7683Address \
+  0xl2Gateway7683Domain \
+  0xforwarderAddress \
+  https://aztec-alpha-testnet-fullnode.zkv.xyz 
 ```
 
 ### ➡️ Aztec Testnet → Base Sepolia
