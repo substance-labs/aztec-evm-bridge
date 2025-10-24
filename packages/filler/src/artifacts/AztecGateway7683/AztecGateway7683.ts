@@ -13,7 +13,6 @@ import {
   type ContractInstanceWithAddress,
   type ContractMethod,
   type ContractStorageLayout,
-  type ContractNotes,
   decodeFromAbi,
   DeployMethod,
   EthAddress,
@@ -25,7 +24,6 @@ import {
   loadContractArtifact,
   loadContractArtifactForPublic,
   type NoirCompiledContract,
-  NoteSelector,
   Point,
   type PublicKey,
   PublicKeys,
@@ -159,14 +157,6 @@ export class AztecGateway7683Contract extends ContractBase {
       | "orders_settlement_block_numbers"
       | "orders_refund_block_numbers"
     >
-  }
-
-  public static get notes(): ContractNotes<"UintNote"> {
-    return {
-      UintNote: {
-        id: new NoteSelector(0),
-      },
-    } as ContractNotes<"UintNote">
   }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */

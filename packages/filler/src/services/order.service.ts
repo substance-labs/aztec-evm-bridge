@@ -80,7 +80,9 @@ class OrderService extends BaseService {
 
       const orderIds = orders.map(({ orderId }) => orderId)
       const newOrdersStatus = await Promise.all(
-        orderIds.map((orderId) => gateway.methods.get_order_status(Fr.fromHexString(orderId)).simulate()),
+        orderIds.map((orderId) =>
+          gateway.methods.get_order_status(Fr.fromHexString(orderId)).simulate({ from: this.aztecWallet.getAddress() }),
+        ),
       )
 
       const filledOrderIds = orderIds.filter((_, index) => newOrdersStatus[index] === ORDER_FILLED)
@@ -269,6 +271,7 @@ class OrderService extends BaseService {
             authWitnesses: [witness],
           })
           .send({
+            from: this.aztecWallet.getAddress(),
             fee: { paymentMethod },
           })
           .wait({
@@ -290,7 +293,7 @@ class OrderService extends BaseService {
           },
           true,
         )
-        await res.send({ fee: { paymentMethod } }).wait({
+        await res.send({ from: this.aztecWallet.getAddress(), fee: { paymentMethod } }).wait({
           timeout: 120000,
         })
 
@@ -300,6 +303,7 @@ class OrderService extends BaseService {
           .withWallet(this.aztecWallet)
           .methods.fill(hexToUintArray(orderId), hexToUintArray(originData), hexToUintArray(fillerData))
           .send({
+            from: this.aztecWallet.getAddress(),
             fee: { paymentMethod },
           })
           .wait({

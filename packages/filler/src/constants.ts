@@ -23,3 +23,4 @@ export const L2_GATEWAY_FILLED_ORDERS_SLOT = 51n
 export const FORWARDER_ADDRESS = process.env.FORWARDER_ADDRESS as `0x${string}`
 export const OP_STACK_ANCHOR_REGISTRY_ADDRESS = process.env.OP_STACK_ANCHOR_REGISTRY_ADDRESS as `0x${string}`
 export const AZTEC_ROLLUP_CONTRACT_L1_ADDRESS = process.env.AZTEC_ROLLUP_CONTRACT_L1_ADDRESS as `0x${string}`
+export const IS_SANDBOX_ENV = (process.env.AZTEC_SANDBOX ?? "").toLowerCase() === "true"

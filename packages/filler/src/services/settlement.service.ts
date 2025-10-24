@@ -21,6 +21,7 @@ import {
   FORWARDER_ADDRESS,
   SETTLE_ORDER_TYPE,
   AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
+  IS_SANDBOX_ENV,
 } from "../constants.js"
 import forwarderAbi from "../abis/forwarder.js"
 import l2Gateway7683Abi from "../abis/l2Gateway7683.js"
@@ -223,6 +224,23 @@ class SettlementService extends BaseService {
     try {
       this.logger.info(`forwarding settlement to L2 for order ${order.orderId} ...`)
 
+      if (IS_SANDBOX_ENV) {
+        this.logger.warn(
+          `skipping forwardSettleToL2 for order ${order.orderId} because AZTEC_SANDBOX is enabled; marking as settled locally`,
+        )
+        await this.db.collection("orders").findOneAndUpdate(
+          { orderId: order.orderId },
+          {
+            $set: {
+              status: ORDER_STATUS_SETTLED,
+              settleTxHash: "sandbox-local",
+            },
+          },
+          { upsert: true, returnDocument: "after" },
+        )
+        return
+      }
+
       const gateway = await AztecGateway7683Contract.at(
         AztecAddress.fromString(this.aztecGatewayAddress),
         this.aztecWallet,
@@ -245,15 +263,34 @@ class SettlementService extends BaseService {
 
       const orderSettlementBlockNumber = (await gateway.methods
         .get_order_settlement_block_number(Fr.fromBufferReduce(Buffer.from(order.orderId.slice(2), "hex")))
-        .simulate()) as bigint
+        .simulate({ from: this.aztecWallet.getAddress() })) as bigint
 
       const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
-      const provenBlockNumber = (await l1Client.readContract({
-        address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
-        args: [],
-        abi: rollupAbi,
-        functionName: "getProvenBlockNumber",
-      })) as bigint
+      let provenBlockNumber: bigint
+      try {
+        provenBlockNumber = (await l1Client.readContract({
+          address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
+          args: [],
+          abi: rollupAbi,
+          functionName: "getProvenBlockNumber",
+        })) as bigint
+      } catch (error) {
+        if (!IS_SANDBOX_ENV) {
+          this.logger.warn(
+            `skipping forwardSettleToL2 for order ${order.orderId} because getProvenBlockNumber is unavailable: ${String(
+              (error as Error).message ?? error,
+            )}`,
+          )
+          return
+        }
+
+        provenBlockNumber = orderSettlementBlockNumber
+        this.logger.warn(
+          `assuming order ${order.orderId} is proven at block ${orderSettlementBlockNumber} because AZTEC_SANDBOX is enabled and getProvenBlockNumber is unavailable: ${String(
+            (error as Error).message ?? error,
+          )}`,
+        )
+      }
 
       if (orderSettlementBlockNumber > provenBlockNumber) {
         this.logger.info(

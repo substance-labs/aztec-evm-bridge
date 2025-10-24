@@ -24,9 +24,24 @@ const EVM_WATCH_INTERVAL_TIME_MS = Number(process.env.EVM_WATCH_INTERVAL_TIME_MS
 const AZTEC_WATCH_INTERVAL_TIME_MS = Number(process.env.AZTEC_WATCH_INTERVAL_TIME_MS as string)
 
 const main = async () => {
-  const mongoClient = new MongoClient(process.env.MONGO_DB_URI as string)
-  await mongoClient.connect()
-  const db = mongoClient.db((process.env.MONGO_DB_NAME as string) || "filler")
+  const mongoUri = (process.env.MONGO_DB_URI as string) || "mongodb://localhost:27017"
+  const mongoUser = process.env.MONGO_DB_USER as string | undefined
+  const mongoPassword = process.env.MONGO_DB_PASSWORD as string | undefined
+  const mongoAuthSource = process.env.MONGO_DB_AUTH_SOURCE as string | undefined
+  const mongoDbName = (process.env.MONGO_DB_NAME as string) || "filler"
+
+  const mongoClient = new MongoClient(mongoUri, {
+    ...(mongoUser && mongoPassword ? { auth: { username: mongoUser, password: mongoPassword } } : {}),
+    ...(mongoAuthSource ? { authSource: mongoAuthSource } : {}),
+  })
+
+  try {
+    await mongoClient.connect()
+  } catch (err) {
+    logger.error("Could not connect to MongoDB", err)
+    process.exit(1)
+  }
+  const db = mongoClient.db(mongoDbName)
 
   // TODO: add possibility to register senders
   await initPxe()

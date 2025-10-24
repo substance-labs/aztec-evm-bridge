@@ -1,11 +1,5 @@
-import {
-  createAztecNodeClient,
-  AztecAddress,
-  waitForPXE,
-  Fr,
-  getContractInstanceFromDeployParams,
-  SponsoredFeePaymentMethod,
-} from "@aztec/aztec.js"
+import { createAztecNodeClient, AztecAddress, waitForPXE, Fr, SponsoredFeePaymentMethod } from "@aztec/aztec.js"
+import { getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contract"
 import { deriveSigningKey } from "@aztec/stdlib/keys"
 import { getSchnorrAccount, SchnorrAccountContractArtifact } from "@aztec/accounts/schnorr"
 import { SponsoredFPCContract, SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
@@ -193,7 +187,7 @@ export const parseResolvedCrossChainOrder = (resolvedOrder: string): ResolvedOrd
 const SPONSORED_FPC_SALT = new Fr(0)
 
 export async function getSponsoredFPCInstance(): Promise<ContractInstanceWithAddress> {
-  return await getContractInstanceFromDeployParams(SponsoredFPCContract.artifact, {
+  return await getContractInstanceFromInstantiationParams(SponsoredFPCContract.artifact, {
     salt: SPONSORED_FPC_SALT,
   })
 }
