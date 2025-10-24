@@ -41,10 +41,11 @@ async function main(): Promise<void> {
     PORTAL_ADDRESS,
   )
     .send({
+      from: deployer.getAddress(),
       contractAddressSalt: Fr.random(),
       universalDeploy: false,
-      skipClassRegistration: false,
-      skipPublicDeployment: false,
+      skipClassPublication: false,
+      skipInstancePublication: false,
       skipInitialization: false,
       fee: { paymentMethod },
     })
@@ -56,7 +57,10 @@ async function main(): Promise<void> {
     "WETH",
     18,
   ])
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: deployer.getAddress(),
+      fee: { paymentMethod },
+    })
     .deployed()
 
   // user and filler must know token and gateway
@@ -75,22 +79,34 @@ async function main(): Promise<void> {
   await token
     .withWallet(deployer)
     .methods.mint_to_private(deployer.getAddress(), user.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: deployer.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait()
   await token
     .withWallet(deployer)
     .methods.mint_to_private(deployer.getAddress(), filler.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: deployer.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait()
   await token
     .withWallet(deployer)
     .methods.mint_to_public(user.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: deployer.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait()
   await token
     .withWallet(deployer)
     .methods.mint_to_public(filler.getAddress(), amount)
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: deployer.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait()
 
   logger.info(`gateway deployed: ${gateway.address.toString()}`)

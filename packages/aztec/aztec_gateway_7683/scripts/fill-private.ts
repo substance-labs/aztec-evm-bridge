@@ -79,6 +79,7 @@ async function main(): Promise<void> {
       authWitnesses: [witness],
     })
     .send({
+      from: wallet.getAddress(),
       fee: { paymentMethod },
     })
     .wait({

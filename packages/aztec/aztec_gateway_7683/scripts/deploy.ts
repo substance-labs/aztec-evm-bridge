@@ -13,6 +13,7 @@ const [
   l2Gateway7683Domain,
   forwarderAddress,
   rpcUrl = "https://aztec-alpha-testnet-fullnode.zkv.xyz",
+  deployWallet = false,
 ] = process.argv
 
 const main = async () => {
@@ -24,7 +25,7 @@ const main = async () => {
     salt: aztecSalt,
     pxe,
     paymentMethod,
-    deploy: false,
+    deploy: deployWallet === "true",
   })
 
   const gateway = await AztecGateway7683Contract.deploy(

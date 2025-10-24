@@ -109,7 +109,10 @@ async function main(): Promise<void> {
         }),
       ],
     })
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: aztecWallet.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait({
       timeout: 120000,
     })

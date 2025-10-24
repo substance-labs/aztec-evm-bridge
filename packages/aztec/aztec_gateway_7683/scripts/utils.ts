@@ -64,7 +64,14 @@ export const getRandomWallet = async ({ paymentMethod, pxe }: { paymentMethod: F
   const secretKey = Fr.random()
   const salt = Fr.random()
   const schnorrAccount = await getSchnorrAccount(pxe, secretKey, deriveSigningKey(secretKey), salt)
-  await schnorrAccount.deploy({ fee: { paymentMethod } }).wait()
+  await schnorrAccount
+    .deploy({
+      fee: { paymentMethod },
+      skipClassRegistration: false,
+      skipPublicDeployment: false,
+      skipInitialization: false,
+    })
+    .wait()
   return await schnorrAccount.getWallet()
 }
 
@@ -85,7 +92,19 @@ export const getWalletFromSecretKey = async ({
   const secretKey = Fr.fromHexString(sk)
   const signingKey = deriveSigningKey(secretKey)
   const account = await getSchnorrAccount(pxe, secretKey, signingKey, salt)
-  if (deploy) await account.deploy({ fee: { paymentMethod } }).wait()
+  if (deploy) {
+    if (!paymentMethod) {
+      throw new Error("paymentMethod is required when deploy is true")
+    }
+    await account
+      .deploy({
+        fee: { paymentMethod },
+        skipClassRegistration: false,
+        skipPublicDeployment: false,
+        skipInitialization: false,
+      })
+      .wait()
+  }
   const wallet = await account.getWallet()
   await pxe.registerAccount(secretKey, (await wallet.getCompleteAddress()).partialAddress)
   await pxe.registerContract({

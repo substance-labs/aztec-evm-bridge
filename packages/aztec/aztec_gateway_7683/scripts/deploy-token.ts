@@ -1,4 +1,5 @@
 import { createLogger, SponsoredFeePaymentMethod } from "@aztec/aztec.js"
+import type { DeployOptions } from "@aztec/aztec.js"
 import { TokenContract } from "@aztec/noir-contracts.js/Token"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
@@ -26,13 +27,21 @@ const main = async () => {
     deploy: false,
   })
 
-  const token = await TokenContract.deploy(wallet, wallet.getAddress(), tokenName, tokenSymbol, parseInt(tokenDecimals))
-    .send({
-      fee: { paymentMethod },
-    })
-    .deployed({
-      timeout: 120000,
-    })
+  const tokenDeployMethod = TokenContract.deploy(
+    wallet,
+    wallet.getAddress(),
+    tokenName,
+    tokenSymbol,
+    parseInt(tokenDecimals),
+  )
+  const deployOptions: DeployOptions = {
+    from: wallet.getAddress(),
+    fee: { paymentMethod },
+  }
+
+  const token = await tokenDeployMethod.send(deployOptions).deployed({
+    timeout: 120000,
+  })
 
   await pxe.registerContract({
     instance: token.instance,
@@ -43,6 +52,9 @@ const main = async () => {
 }
 
 main().catch((err) => {
-  console.error(`❌ ${err}`)
+  console.error("❌", err)
+  if (err && err.stack) {
+    console.error(err.stack)
+  }
   process.exit(1)
 })

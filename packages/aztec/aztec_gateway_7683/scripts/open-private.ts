@@ -75,7 +75,10 @@ async function main(): Promise<void> {
     .with({
       authWitnesses: [witness],
     })
-    .send({ fee: { paymentMethod } })
+    .send({
+      from: wallet.getAddress(),
+      fee: { paymentMethod },
+    })
     .wait({
       timeout: 120000,
     })

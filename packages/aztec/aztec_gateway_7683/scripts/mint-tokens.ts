@@ -37,8 +37,9 @@ const main = async () => {
   const token = await TokenContract.at(AztecAddress.fromString(tokenAddress as string), wallet)
 
   await token.methods
-    .mint_to_private(wallet.getAddress(), AztecAddress.fromString(recipientAddress), BigInt(amountPrivate))
+    .mint_to_private(AztecAddress.fromString(recipientAddress), BigInt(amountPrivate))
     .send({
+      from: wallet.getAddress(),
       fee: { paymentMethod },
     })
     .wait({

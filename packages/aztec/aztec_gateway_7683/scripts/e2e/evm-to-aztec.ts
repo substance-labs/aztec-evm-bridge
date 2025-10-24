@@ -53,22 +53,26 @@ async function main(): Promise<void> {
     transport: http(),
   })
 
-  const amount = 100n
+  const amount = 100n * 10n ** 18n
   logger.info("approving tokens ...")
+  let currentNonce = await evmPublicClient.getTransactionCount({ address: evmWalletClient.account.address })
   let txHash = await evmWalletClient.writeContract({
     address: l2EvmTokenAddress as `0x${string}`,
     abi: erc20Abi,
     functionName: "approve",
     args: [l2Gateway7683Address as `0x${string}`, amount],
+    nonce: currentNonce,
   })
   await evmPublicClient.waitForTransactionReceipt({ hash: txHash })
+  currentNonce += 1
 
+  console.log("sadfasdf")
   const fillDeadline = 2 ** 32 - 1
   const secret = Fr.random()
   const secretHash = await poseidon2Hash([secret])
   const nonce = Fr.random()
   const orderData = new OrderData({
-    sender: padHex(recipientAddress as `0x${string}`),
+    sender: padHex(evmWalletClient.account.address as `0x${string}`),
     recipient: secretHash.toString(),
     inputToken: padHex(l2EvmTokenAddress as `0x${string}`),
     outputToken: aztecTokenAddress as `0x${string}`,
@@ -128,6 +132,7 @@ async function main(): Promise<void> {
         orderData: orderData.encode(),
       },
     ],
+    nonce: currentNonce,
   })
   const receipt = await waitForTransactionReceipt(evmPublicClient, { hash: txHash })
 
@@ -136,7 +141,7 @@ async function main(): Promise<void> {
 
   const pxe = await getPxe(rpcUrl)
   const paymentMethod = new SponsoredFeePaymentMethod(await getSponsoredFPCAddress())
-  const aztecWalllet = await getWalletFromSecretKey({
+  const aztecWallet = await getWalletFromSecretKey({
     secretKey: aztecSecretKey,
     salt: aztecSalt,
     pxe,
@@ -155,11 +160,13 @@ async function main(): Promise<void> {
   const gateway = await Contract.at(
     AztecAddress.fromString(aztecGateway7683Address),
     AztecGateway7683ContractArtifact,
-    aztecWalllet,
+    aztecWallet,
   )
 
   while (true) {
-    const status = await gateway.methods.get_order_status(orderId).simulate()
+    const status = await gateway.methods
+      .get_order_status(orderId)
+      .simulate({ from: aztecWallet.getAddress(), skipTxValidation: true })
     logger.info(`order ${orderId.toString()} status: ${status}`)
     // FILLED_PRIVATELY
     if (status === 3n) {
@@ -193,6 +200,7 @@ async function main(): Promise<void> {
           Array.from(hexToBytes(log.fillerData as `0x${string}`)),
         )
         .send({
+          from: aztecWallet.getAddress(),
           fee: {
             paymentMethod,
           },
@@ -203,7 +211,7 @@ async function main(): Promise<void> {
       break
     }
 
-    sleep(15000)
+    await sleep(15000)
   }
 }
 
