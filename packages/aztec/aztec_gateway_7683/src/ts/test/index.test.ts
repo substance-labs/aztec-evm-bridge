@@ -130,7 +130,7 @@ describe("AztecGateway7683", () => {
   let token: any
   let paymentMethod: any
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     skipSandbox = process.env.SKIP_SANDBOX === "true"
     if (!skipSandbox) {
       // Clean up old PXE stores
