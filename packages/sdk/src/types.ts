@@ -1,5 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Chain, Hex } from "viem"
 import type { AzguardClient } from "@azguardwallet/client"
+import type { Fr } from "@aztec/aztec.js/fields"
+import type { Wallet } from "@aztec/aztec.js/wallet"
 
 export type FilledLog = {
   orderId: `0x${string}`
@@ -134,10 +137,7 @@ export interface OrderCallbacks {
 
 export interface BridgeConfigs {
   azguardClient?: AzguardClient
-  aztecNodeUrl?: string
-  aztecPxeStoreDirectory?: string
-  aztecKeySalt?: Hex
-  aztecSecretKey?: Hex
+  aztecWallet?: Wallet
   beaconApiUrl?: string
   evmPrivateKey?: Hex
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */

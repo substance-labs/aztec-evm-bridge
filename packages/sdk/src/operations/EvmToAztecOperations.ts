@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AbiEvent, Chain, createClient, createPublicClient, erc20Abi, Hex, http, padHex } from "viem"
 import * as evmChains from "viem/chains"
-import { AztecAddress, Fr } from "@aztec/aztec.js"
+import { AztecAddress } from "@aztec/aztec.js/addresses"
+import { Fr } from "@aztec/aztec.js/fields"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
 import { sleep } from "@aztec/foundation/sleep"
 import { poseidon2Hash } from "@aztec/foundation/crypto"
@@ -203,6 +204,18 @@ export class EvmToAztecOperations {
       resolvedOrder,
       transactionHash: txHash,
     })
+
+    // Register the output token contract with the PXE before monitoring
+    if (!this.azguardClient) {
+      const wallet = await this.#getAztecWallet()
+      const tokenInstance = await createAztecNodeClient(aztecSepolia.rpcUrls.default.http[0]).getContract(
+        AztecAddress.fromString(tokenOut),
+      )
+      if (!tokenInstance) {
+        throw new Error(`Token contract instance not found for address ${tokenOut}`)
+      }
+      await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+    }
 
     await this.monitorOrder(order, orderId, callbacks)
 
