@@ -1,6 +1,6 @@
 {
   "name": "@substancelabs/aztec-evm-bridge-sdk",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "TypeScript SDK for bridging assets between Aztec and EVM chains using ERC-7683",
   "license": "MIT",
   "author": "Substance Labs",
