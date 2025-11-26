@@ -5,9 +5,17 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    setupFiles: ["./test/setup.ts"],
+    bail: 1,
     coverage: {
       reporter: ["text", "json", "html"],
     },
     testTimeout: 15 * 60 * 1000,
+  },
+  ssr: {
+    noExternal: [/@aztec/],
+  },
+  resolve: {
+    conditions: ["node", "import"],
   },
 })
