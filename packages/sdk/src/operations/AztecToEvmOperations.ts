@@ -9,6 +9,7 @@ import { sleep } from "@aztec/foundation/sleep"
 import { AzguardClient } from "@azguardwallet/client"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
 import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { AztecAddress } from "@aztec/stdlib/aztec-address"
 
 import {
   getAztecAddressFromAzguardAccount,
@@ -28,7 +29,6 @@ import {
 } from "../constants"
 import { AztecGateway7683Contract } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import l2Gateway7683Abi from "../utils/abi/l2Gateway7683"
-
 import type { FillOrderDetails, Order, OrderCallbacks, OrderResult, RefundOrderDetails, ResolvedOrder } from "../types"
 
 const AZTEC_WAIT_TIMEOUT = 120000

@@ -4,7 +4,6 @@ export * from "./constants"
 export type * from "./types"
 
 // New refactored modules
-export { AztecService } from "./services/AztecService"
 export { EvmService } from "./services/EvmService"
 export { BridgeHelpers } from "./helpers/BridgeHelpers"
 export { LogQueries } from "./utils/LogQueries"
