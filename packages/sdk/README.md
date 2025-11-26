@@ -21,52 +21,43 @@ Here's a basic example showing how to initiate an order **from Aztec to Base**:
 
 ```ts
 import { Bridge, aztecSepolia } from "@substancelabs/aztec-evm-bridge-sdk"
+import { AzguardClient } from "@azguardwallet/client"
 import { padHex } from "viem"
 import { baseSepolia } from "viem/chains"
 
-const bridge = new Bridge({
-  evmPrivateKey: "0x...",
-  aztecSecretKey: "0x...",
-  aztecKeySalt: "0x...",
-  aztecNodeUrl: "https://devnet.aztec-labs.com",
-  aztecPxeStoreDirectory: "./store/pxe", // Optional: defaults to ./store
-  beaconApiUrl: "https://beacon.ethpandaops.io", // Optional: required for forward operations
-})
-
-bridge
-  .openOrder({
-    chainIdIn: aztecSepolia.id,
-    chainIdOut: baseSepolia.id,
-    amountIn: 1n,
-    amountOut: 1n, // amountOut must be less than amountIn to account for slippage
-    tokenIn: "0x...", // 32-byte hex token address
-    tokenOut: "0x...", // 20-byte EVM address, padded to 32 bytes
-    mode: "private", // Options: "private", "privateWithHook", "public", "publicWithHook"
-    data: padHex("0x"), // 32-byte hex for additional data
-    recipient: padHex("0x"), // 32-byte hex recipient address
-  })
-  .then((result) => {
-    console.log("Order opened:", result.orderId)
-    console.log("Transaction hash:", result.txHash)
-  })
-  .catch(console.error)
-```
-
-### Alternative: Using Azguard Wallet
-
-```ts
-import { AzguardClient } from "@azguardwallet/client"
-
 const azguardClient = new AzguardClient(/* your config */)
 
-const bridge = new Bridge({
-  evmPrivateKey: "0x...",
-  azguardClient, // Use Azguard instead of aztecSecretKey/aztecKeySalt/aztecNodeUrl
+const bridge = await Bridge.create({
+  azguardClient: azguardClient,
+  evmProvider: wagmiClient,
 })
+
+const result = await bridge.openOrder(
+  {
+    chainIdIn: aztecSepolia.id,
+    chainIdOut: baseSepolia.id,
+    amountIn: 1000000n,
+    amountOut: 990000n,
+    tokenIn: "0x...",
+    tokenOut: "0x...",
+    recipient: padHex("0x123..."),
+    mode: "public",
+    data: padHex("0x"),
+  },
+  {
+    onOrderOpened: ({ orderId, transactionHash }) => {
+      console.log(`✅ Order ${orderId} opened: ${transactionHash}`)
+    },
+    onOrderFilled: ({ orderId, transactionHash }) => {
+      console.log(`💰 Order ${orderId} filled: ${transactionHash}`)
+    },
+  }
+)
 ```
 
----
+**📚 For comprehensive documentation including API reference, order flows, examples, and troubleshooting, see [DOCUMENTATION.md](./DOCUMENTATION.md).**
 
+---
 
 ## 🧪 Development
 
@@ -76,4 +67,7 @@ yarn build
 
 # Run tests
 yarn test
+
+# Run tests with coverage
+yarn test:coverage
 ```
