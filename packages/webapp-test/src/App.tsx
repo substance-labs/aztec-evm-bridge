@@ -96,44 +96,28 @@ function App() {
   const [error, setError] = useState<string | null>(null)
 
   // Order opening state
+  const [initMode, setInitMode] = useState<'azguard' | 'wallet'>('wallet')
+  const [orderDirection, setOrderDirection] = useState<'evm-to-aztec' | 'aztec-to-evm'>('evm-to-aztec')
   const [orderForm, setOrderForm] = useState({
-    // Bridge direction
-    direction: 'aztecToEvm' as 'aztecToEvm' | 'evmToAztec',
-    chainIdIn: '999999', // Aztec
-    chainIdOut: '84532', // Base Sepolia
-    tokenIn: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81',
-    tokenOut: '0xAf31a5CFf95131B2E0D3fa89125342984567f399',
+    chainIdIn: '84532', // Base Sepolia
+    chainIdOut: '999999', // Aztec Sepolia
+    tokenIn: '0xAf31a5CFf95131B2E0D3fa89125342984567f399', // WETH on Base Sepolia
+    tokenOut: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81', // WETH on Aztec
     amountIn: '1000',
     amountOut: '1000',
-    recipient: '0x2083573BE32F514a8a81d7E9781bA95156b7CB70',
+    recipient: '',
     mode: 'public' as const,
     data: '0x0000000000000000000000000000000000000000000000000000000000000000',
-    
-    // Bridge initialization mode
-    bridgeInitMode: 'secretKey' as 'secretKey' | 'pxe' | 'azguard',
-    
-    // Secret key mode
-    evmPrivateKey: '',
-    aztecSecretKey: '0x272df8703f3901a55a5baa9d24c21e03134c83fc99c05a971e4fa51565aff309',
-    aztecKeySalt: '0x0badf64f28b28e496813040295c611daeea552fc271de1e8e92baca5f32c68be',
+    // Wallet credentials (for 'wallet' mode)
+    aztecSecretKey: '',
+    aztecKeySalt: '',
     aztecNodeUrl: 'https://devnet.aztec-labs.com',
-    aztecPxeStoreDirectory: 'webapp-pxe',
-    
-    // PXE mode
-    pxeUrl: 'https://devnet.aztec-labs.com',
-    
-    // Azguard mode
-    azguardConnected: false,
+    // EVM credentials
+    evmPrivateKey: '',
   })
   const [orderStatus, setOrderStatus] = useState<string>('')
   const [orderResult, setOrderResult] = useState<any>(null)
-  const [orderLogs, setOrderLogs] = useState<Array<{ timestamp: string; message: string }>>([])
-
-  const addOrderLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setOrderLogs(prev => [...prev, { timestamp, message }])
-    setOrderStatus(message)
-  }
+  const [isOrderLoading, setIsOrderLoading] = useState<boolean>(false)
 
   const orderData = useMemo(() => buildOrderData(form), [form])
 
@@ -172,38 +156,37 @@ function App() {
 
   const handleOrderFormChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = event.target
+    setOrderForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleDirectionChange = (newDirection: 'evm-to-aztec' | 'aztec-to-evm') => {
+    setOrderDirection(newDirection)
     
-    // Update chain IDs and token addresses automatically when direction changes
-    if (name === 'direction') {
-      if (value === 'aztecToEvm') {
-        setOrderForm((prev) => ({
-          ...prev,
-          direction: 'aztecToEvm',
-          chainIdIn: '999999',  // Aztec
-          chainIdOut: '84532',   // Base Sepolia
-          tokenIn: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81',  // Aztec token
-          tokenOut: '0xAf31a5CFf95131B2E0D3fa89125342984567f399',  // Base Sepolia token
-        }))
-      } else if (value === 'evmToAztec') {
-        setOrderForm((prev) => ({
-          ...prev,
-          direction: 'evmToAztec',
-          chainIdIn: '84532',    // Base Sepolia
-          chainIdOut: '999999',  // Aztec
-          tokenIn: '0xAf31a5CFf95131B2E0D3fa89125342984567f399',   // Base Sepolia token
-          tokenOut: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81', // Aztec token
-        }))
-      }
+    // Swap chain IDs and token addresses when direction changes
+    if (newDirection === 'evm-to-aztec') {
+      setOrderForm((prev) => ({
+        ...prev,
+        chainIdIn: '84532', // Base Sepolia
+        chainIdOut: '999999', // Aztec
+        tokenIn: '0xAf31a5CFf95131B2E0D3fa89125342984567f399', // WETH on Base Sepolia
+        tokenOut: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81', // WETH on Aztec
+      }))
     } else {
-      setOrderForm((prev) => ({ ...prev, [name]: value }))
+      setOrderForm((prev) => ({
+        ...prev,
+        chainIdIn: '999999', // Aztec
+        chainIdOut: '84532', // Base Sepolia
+        tokenIn: '0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81', // WETH on Aztec
+        tokenOut: '0xAf31a5CFf95131B2E0D3fa89125342984567f399', // WETH on Base Sepolia
+      }))
     }
   }
 
   const handleOpenOrder = async () => {
     setError(null)
-    setOrderLogs([])
-    addOrderLog('Initializing bridge...')
+    setOrderStatus('Initializing bridge...')
     setOrderResult(null)
+    setIsOrderLoading(true)
 
     try {
       if (!orderForm.tokenIn || !orderForm.tokenOut) {
@@ -212,123 +195,60 @@ function App() {
       if (!orderForm.recipient) {
         throw new Error('Recipient address is required')
       }
+      if (!orderForm.evmPrivateKey) {
+        throw new Error('EVM private key is required')
+      }
 
-      const isEvmToAztec = Number(orderForm.chainIdOut) === 11155111 // Aztec Sepolia
-      const isAztecToEvm = Number(orderForm.chainIdIn) === 11155111 // Aztec Sepolia
-      
-      // Validate required credentials based on order direction
-      if (isAztecToEvm) {
+      let bridge: Bridge
+
+      if (initMode === 'azguard') {
+        // Initialize with Azguard client
+        setOrderStatus('Connecting to Azguard...')
+        const { AzguardClient } = await import('@azguardwallet/client')
+        const azguardClient = await AzguardClient.create()
+        
+        bridge = await Bridge.create({
+          azguardClient,
+          evmPrivateKey: orderForm.evmPrivateKey as Hex,
+        })
+        setOrderStatus('Connected to Azguard')
+      } else {
+        // Initialize with test wallet
         if (!orderForm.aztecSecretKey || !orderForm.aztecKeySalt) {
-          throw new Error('Aztec secret key and salt are required for Aztec→EVM orders')
+          throw new Error('Aztec secret key and salt are required for wallet mode')
         }
-        if (!orderForm.aztecNodeUrl) {
-          throw new Error('Aztec node URL is required for Aztec→EVM orders')
-        }
-      }
-      
-      if (isEvmToAztec && !orderForm.evmPrivateKey) {
-        throw new Error('EVM private key is required for EVM→Aztec orders')
-      }
 
-      // Build Bridge config based on initialization mode
-      const bridgeConfig: any = {}
-      
-      if (orderForm.bridgeInitMode === 'secretKey') {
-        // Mode 1: Initialize with secret key and salt (SDK creates PXE internally)
-        if (orderForm.evmPrivateKey) {
-          bridgeConfig.evmPrivateKey = orderForm.evmPrivateKey as Hex
-        }
-        
-        if (orderForm.aztecSecretKey && orderForm.aztecKeySalt) {
-          bridgeConfig.aztecSecretKey = orderForm.aztecSecretKey as Hex
-          bridgeConfig.aztecKeySalt = orderForm.aztecKeySalt as Hex
-          bridgeConfig.aztecNodeUrl = orderForm.aztecNodeUrl
-          bridgeConfig.aztecPxeStoreDirectory = orderForm.aztecPxeStoreDirectory || 'webapp-pxe'
-          addOrderLog('🔑 Mode: Secret Key + Salt (SDK creates PXE internally)')
-        }
-      } else if (orderForm.bridgeInitMode === 'pxe') {
-        // Mode 2: Create a standalone Wallet and pass to Bridge
-        addOrderLog('🔌 Mode: Creating standalone Wallet...')
-        
-        if (!orderForm.aztecNodeUrl) {
-          throw new Error('Aztec node URL is required')
-        }
-        
-        // Import necessary Aztec modules
+        setOrderStatus('Creating Aztec wallet...')
+        const { Fr } = await import('@aztec/aztec.js/fields')
         const { createAztecNodeClient } = await import('@aztec/aztec.js/node')
-        const { getPXEConfig } = await import('@aztec/pxe/config')
-        const { createPXE } = await import('@aztec/pxe/client/lazy')
-        const { Fr } = await import('@aztec/foundation/fields')
-        const { getContractInstanceFromInstantiationParams } = await import('@aztec/aztec.js/contracts')
-        const { SponsoredFPCContractArtifact } = await import('@aztec/noir-contracts.js/SponsoredFPC')
-        const { SPONSORED_FPC_SALT } = await import('@aztec/constants')
-        const { deriveSigningKey } = await import('@aztec/stdlib/keys')
+        const { TestWallet } = await import('@aztec/test-wallet/client/lazy')
         
-        addOrderLog('Creating Aztec node client...')
         const aztecNode = createAztecNodeClient(orderForm.aztecNodeUrl)
+        const secretKey = Fr.fromHexString(orderForm.aztecSecretKey as Hex)
+        const salt = Fr.fromHexString(orderForm.aztecKeySalt as Hex)
         
-        addOrderLog('Initializing PXE...')
-        const config = getPXEConfig()
-        config.l1Contracts = await aztecNode.getL1ContractAddresses()
-        config.proverEnabled = false
-        
-        const pxe = await createPXE(aztecNode, config, { useLogSuffix: true })
-        
-        addOrderLog('Registering Sponsored FPC contract...')
-        const sponsoredFPCInstance = await getContractInstanceFromInstantiationParams(
-          SponsoredFPCContractArtifact,
-          { salt: new Fr(SPONSORED_FPC_SALT) }
-        )
-        await pxe.registerContract({
-          instance: sponsoredFPCInstance,
-          artifact: SponsoredFPCContractArtifact,
+        const testWallet = await TestWallet.create(aztecNode, {
+          l1Contracts: await aztecNode.getL1ContractAddresses(),
+          proverEnabled: false,
         })
         
-        addOrderLog('Creating and registering Schnorr account...')
-        if (!orderForm.aztecSecretKey || !orderForm.aztecKeySalt) {
-          throw new Error('Secret key and salt are required for Wallet mode')
+        const accountManager = await testWallet.createSchnorrAccount(secretKey, salt)
+        
+        // Try to deploy account if needed
+        try {
+          const deployMethod = await accountManager.getDeployMethod()
+          const completeAddress = await accountManager.getCompleteAddress()
+          await deployMethod.send({ from: completeAddress.address }).wait()
+        } catch (e) {
+          console.log('Account already deployed or deployment not needed:', e)
         }
         
-        const secret = Fr.fromString(orderForm.aztecSecretKey)
-        const salt = Fr.fromString(orderForm.aztecKeySalt)
-        const signingKey = deriveSigningKey(secret)
-        
-        // Use SDKAztecWallet to properly register the account
-        const { SDKAztecWallet } = await import('@substancelabs/aztec-evm-bridge-sdk')
-        const sdkWallet = await SDKAztecWallet.fromPXE(orderForm.aztecNodeUrl, pxe)
-        const accountManager = await sdkWallet.createSchnorrAccount(secret, salt, signingKey)
-        
-        addOrderLog(`✓ Account registered: ${accountManager.address.toString().slice(0, 16)}...`)
-        addOrderLog('✓ Wallet fully configured and ready')
-        
-        // Pass the wallet (which extends BaseWallet) to Bridge
-        bridgeConfig.aztecWallet = sdkWallet
-        
-        // Bridge still needs credentials to retrieve/use accounts
-        if (orderForm.aztecSecretKey && orderForm.aztecKeySalt) {
-          bridgeConfig.aztecSecretKey = orderForm.aztecSecretKey as Hex
-          bridgeConfig.aztecKeySalt = orderForm.aztecKeySalt as Hex
-        }
-        
-        if (orderForm.evmPrivateKey) {
-          bridgeConfig.evmPrivateKey = orderForm.evmPrivateKey as Hex
-        }
-      } else if (orderForm.bridgeInitMode === 'azguard') {
-        // Mode 3: Initialize with Azguard wallet
-        addOrderLog('👛 Mode: Azguard Wallet')
-        if (!orderForm.azguardConnected) {
-          throw new Error(
-            'Azguard wallet not connected. ' +
-            'Install @azguardwallet/client and connect your Azguard wallet first. ' +
-            'Then pass the AzguardClient instance as bridgeConfig.azguardClient.'
-          )
-        }
-        // In a real implementation, you would get the azguardClient from the wallet connection
-        // bridgeConfig.azguardClient = azguardClientInstance
-        throw new Error('Azguard integration requires @azguardwallet/client package and wallet connection.')
+        bridge = await Bridge.create({
+          aztecWallet: testWallet,
+          evmPrivateKey: orderForm.evmPrivateKey as Hex,
+        })
+        setOrderStatus('Aztec wallet created')
       }
-
-      const bridge = new Bridge(bridgeConfig)
 
       const order: Order = {
         chainIdIn: Number(orderForm.chainIdIn),
@@ -342,40 +262,37 @@ function App() {
         data: orderForm.data as Hex,
       }
 
-      addOrderLog('Opening order...')
+      setOrderStatus('Opening order...')
 
       const result = await bridge.openOrder(order, {
-        onSecret: ({ orderId, secret }) => {
-          addOrderLog(`✓ Secret generated for order ${orderId.slice(0, 10)}...`)
+        onSecret: ({ orderId, secret }: { orderId: string; secret: string }) => {
+          setOrderStatus(`Secret generated for order ${orderId.slice(0, 10)}...`)
           console.log('Order ID:', orderId)
           console.log('Secret:', secret)
         },
-        onOrderOpened: ({ orderId, transactionHash, resolvedOrder }) => {
-          addOrderLog(`✓ Order opened! TX: ${transactionHash.slice(0, 10)}...`)
-          addOrderLog('⏳ Waiting for order to be filled...')
+        onOrderOpened: ({ orderId, transactionHash, resolvedOrder }: any) => {
+          setOrderStatus(`Order opened! TX: ${transactionHash.slice(0, 10)}...`)
           console.log('Full Transaction Hash:', transactionHash)
           console.log('Order ID:', orderId)
           console.log('Resolved Order:', resolvedOrder)
         },
-        onOrderFilled: ({ orderId, transactionHash }) => {
-          addOrderLog(`✓ Order filled! ID: ${orderId.slice(0, 10)}...`)
-          if (transactionHash) {
-            addOrderLog(`✓ Fill TX: ${transactionHash.slice(0, 10)}...`)
-          }
-          addOrderLog('⏳ Claiming order...')
+        onOrderFilled: ({ orderId }: { orderId: string }) => {
+          setOrderStatus(`Order filled! ID: ${orderId.slice(0, 10)}...`)
         },
-        onOrderClaimed: ({ transactionHash }) => {
-          addOrderLog(`✓ Order claimed! TX: ${transactionHash.slice(0, 10)}...`)
+        onOrderClaimed: ({ transactionHash }: { transactionHash: string }) => {
+          setOrderStatus(`Order claimed! TX: ${transactionHash.slice(0, 10)}...`)
           console.log('Claim TX:', transactionHash)
         },
       })
 
       setOrderResult(result)
-      addOrderLog('✅ Order completed successfully!')
+      setOrderStatus('Order completed successfully!')
     } catch (err) {
       setError((err as Error).message)
-      addOrderLog('❌ Order failed')
+      setOrderStatus('Order failed')
       console.error('Order error:', err)
+    } finally {
+      setIsOrderLoading(false)
     }
   }
 
@@ -458,9 +375,7 @@ function App() {
             />
 
             <h2>Decoded order preview</h2>
-            <pre>{decoded ? JSON.stringify(decoded, (_key, value) => 
-              typeof value === 'bigint' ? value.toString() : value
-            , 2) : 'Run "Decode payload" to see structured data.'}</pre>
+            <pre>{decoded ? JSON.stringify(decoded, null, 2) : 'Run "Decode payload" to see structured data.'}</pre>
           </section>
         </>
       )}
@@ -469,56 +384,110 @@ function App() {
         <>
           {orderStatus && <div className="alert info">{orderStatus}</div>}
 
-          <div className="alert info">
-            <strong>Bridge Initialization Modes:</strong>
-            <ul style={{ margin: '0.5rem 0 0 1.5rem', paddingLeft: 0 }}>
-              <li><strong>Secret Key:</strong> SDK creates PXE internally. Best for browser testing.</li>
-              <li><strong>Standalone Wallet:</strong> Creates Wallet first, registers account, then passes to Bridge.</li>
-              <li><strong>Azguard:</strong> Use Azguard wallet (requires @azguardwallet/client).</li>
-            </ul>
-          </div>
+          <section className="order-form">
+            <h2>Order Direction</h2>
+            <div className="mode-switcher">
+              <button
+                type="button"
+                className={orderDirection === 'evm-to-aztec' ? 'active' : ''}
+                onClick={() => handleDirectionChange('evm-to-aztec')}
+              >
+                EVM → Aztec
+              </button>
+              <button
+                type="button"
+                className={orderDirection === 'aztec-to-evm' ? 'active' : ''}
+                onClick={() => handleDirectionChange('aztec-to-evm')}
+              >
+                Aztec → EVM
+              </button>
+            </div>
+          </section>
 
           <section className="order-form">
-            <h2>Bridge Initialization</h2>
-            <div className="field-grid">
-              <label>
-                <span>Initialization Mode</span>
-                <select 
-                  name="bridgeInitMode" 
-                  value={orderForm.bridgeInitMode} 
-                  onChange={handleOrderFormChange}
-                >
-                  <option value="secretKey">Secret Key + Salt</option>
-                  <option value="pxe">Standalone Wallet (BaseWallet)</option>
-                  <option value="azguard">Azguard Wallet</option>
-                </select>
-              </label>
+            <h2>Initialization Mode</h2>
+            <div className="mode-switcher">
+              <button
+                type="button"
+                className={initMode === 'wallet' ? 'active' : ''}
+                onClick={() => setInitMode('wallet')}
+              >
+                Test Wallet
+              </button>
+              <button
+                type="button"
+                className={initMode === 'azguard' ? 'active' : ''}
+                onClick={() => setInitMode('azguard')}
+              >
+                Azguard Extension
+              </button>
             </div>
+          </section>
 
-            <h2>Order Parameters</h2>
+          {initMode === 'wallet' && (
+            <section className="order-form">
+              <h2>Aztec Wallet Credentials</h2>
+              <div className="field-grid">
+                <label>
+                  <span>Aztec Secret Key</span>
+                  <input
+                    name="aztecSecretKey"
+                    value={orderForm.aztecSecretKey}
+                    onChange={handleOrderFormChange}
+                    type="password"
+                    placeholder="0x..."
+                  />
+                </label>
+                <label>
+                  <span>Aztec Key Salt</span>
+                  <input
+                    name="aztecKeySalt"
+                    value={orderForm.aztecKeySalt}
+                    onChange={handleOrderFormChange}
+                    type="password"
+                    placeholder="0x..."
+                  />
+                </label>
+                <label>
+                  <span>Aztec Node URL</span>
+                  <input
+                    name="aztecNodeUrl"
+                    value={orderForm.aztecNodeUrl}
+                    onChange={handleOrderFormChange}
+                    placeholder="https://api.aztec.network/..."
+                  />
+                </label>
+              </div>
+            </section>
+          )}
+
+          <section className="order-form">
+            <h2>EVM Credentials</h2>
             <div className="field-grid">
               <label>
-                <span>Bridge Direction</span>
-                <select 
-                  name="direction" 
-                  value={orderForm.direction} 
+                <span>EVM Private Key</span>
+                <input
+                  name="evmPrivateKey"
+                  value={orderForm.evmPrivateKey}
                   onChange={handleOrderFormChange}
-                >
-                  <option value="aztecToEvm">Aztec → EVM (Base Sepolia)</option>
-                  <option value="evmToAztec">EVM (Base Sepolia) → Aztec</option>
-                </select>
+                  type="password"
+                  placeholder="0x..."
+                />
               </label>
             </div>
-            
+          </section>
+
+          <section className="order-form">
+            <h2>Order Parameters</h2>
             <div className="field-grid">
               <label>
                 <span>Source Chain ID</span>
                 <input
                   name="chainIdIn"
                   value={orderForm.chainIdIn}
-                  type="text"
-                  disabled
-                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                  onChange={handleOrderFormChange}
+                  type="number"
+                  placeholder="84532"
                 />
               </label>
               <label>
@@ -526,9 +495,9 @@ function App() {
                 <input
                   name="chainIdOut"
                   value={orderForm.chainIdOut}
-                  type="text"
-                  disabled
-                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                  onChange={handleOrderFormChange}
+                  type="number"
+                  placeholder="11155111"
                 />
               </label>
               <label>
@@ -594,165 +563,19 @@ function App() {
                   placeholder="0x0000...0001"
                 />
               </label>
-              <label>
-                <span>EVM Private Key (for EVM→Aztec)</span>
-                <input
-                  name="evmPrivateKey"
-                  value={orderForm.evmPrivateKey}
-                  onChange={handleOrderFormChange}
-                  type="password"
-                  placeholder="0x..."
-                />
-              </label>
             </div>
 
-            {orderForm.bridgeInitMode === 'secretKey' && (
-              <>
-                <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-                  Aztec Credentials - Secret Key Mode
-                </h3>
-                <div className="field-grid">
-                  <label>
-                    <span>Aztec Secret Key</span>
-                    <input
-                      name="aztecSecretKey"
-                      value={orderForm.aztecSecretKey}
-                      onChange={handleOrderFormChange}
-                      type="password"
-                      placeholder="0x..."
-                    />
-                  </label>
-                  <label>
-                    <span>Aztec Key Salt</span>
-                    <input
-                      name="aztecKeySalt"
-                      value={orderForm.aztecKeySalt}
-                      onChange={handleOrderFormChange}
-                      type="password"
-                      placeholder="0x..."
-                    />
-                  </label>
-                  <label>
-                    <span>Aztec Node URL</span>
-                    <input
-                      name="aztecNodeUrl"
-                      value={orderForm.aztecNodeUrl}
-                      onChange={handleOrderFormChange}
-                      placeholder="https://devnet.aztec-labs.com"
-                    />
-                  </label>
-                  <label>
-                    <span>PXE Store Directory (optional)</span>
-                    <input
-                      name="aztecPxeStoreDirectory"
-                      value={orderForm.aztecPxeStoreDirectory}
-                      onChange={handleOrderFormChange}
-                      placeholder="webapp-pxe"
-                    />
-                  </label>
-                </div>
-              </>
-            )}
-
-            {orderForm.bridgeInitMode === 'pxe' && (
-              <>
-                <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-                  Standalone Wallet Mode
-                </h3>
-                <div className="alert info">
-                  Creates a standalone Wallet (extends BaseWallet) with PXE and account, then passes it to the Bridge. 
-                  This mode demonstrates how to use the Bridge with a pre-initialized wallet instance.
-                  The wallet must have accounts already registered.
-                </div>
-                <div className="field-grid">
-                  <label>
-                    <span>Aztec Node URL</span>
-                    <input
-                      name="aztecNodeUrl"
-                      value={orderForm.aztecNodeUrl}
-                      onChange={handleOrderFormChange}
-                      placeholder="https://devnet.aztec-labs.com"
-                    />
-                  </label>
-                  <label>
-                    <span>Aztec Secret Key (for account creation)</span>
-                    <input
-                      name="aztecSecretKey"
-                      value={orderForm.aztecSecretKey}
-                      onChange={handleOrderFormChange}
-                      type="password"
-                      placeholder="0x..."
-                    />
-                  </label>
-                  <label>
-                    <span>Aztec Key Salt</span>
-                    <input
-                      name="aztecKeySalt"
-                      value={orderForm.aztecKeySalt}
-                      onChange={handleOrderFormChange}
-                      type="password"
-                      placeholder="0x..."
-                    />
-                  </label>
-                </div>
-              </>
-            )}
-
-            {orderForm.bridgeInitMode === 'azguard' && (
-              <>
-                <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-                  Azguard Wallet Mode
-                </h3>
-                <div className="alert info">
-                  Connect your Azguard wallet and pass the <code>AzguardClient</code> instance 
-                  via <code>bridgeConfig.azguardClient</code>. Requires <code>@azguardwallet/client</code> package.
-                </div>
-                <div className="field-grid">
-                  <label>
-                    <span>Wallet Status</span>
-                    <input
-                      value={orderForm.azguardConnected ? 'Connected' : 'Not Connected'}
-                      disabled
-                    />
-                  </label>
-                </div>
-              </>
-            )}
-
             <div className="order-actions">
-              <button type="button" onClick={handleOpenOrder} className="primary">
-                Open Order
+              <button type="button" onClick={handleOpenOrder} className="primary" disabled={isOrderLoading}>
+                {isOrderLoading ? 'Processing...' : 'Open Order'}
               </button>
             </div>
           </section>
 
-          {orderLogs.length > 0 && (
-            <section className="results">
-              <h2>Order Progress</h2>
-              <div style={{ 
-                background: '#1e1e1e', 
-                padding: '1rem', 
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '0.9rem',
-                maxHeight: '300px',
-                overflowY: 'auto'
-              }}>
-                {orderLogs.map((log, index) => (
-                  <div key={index} style={{ marginBottom: '0.5rem', color: '#d4d4d4' }}>
-                    <span style={{ color: '#858585' }}>[{log.timestamp}]</span> {log.message}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
           {orderResult && (
             <section className="results">
               <h2>Order Result</h2>
-              <pre>{JSON.stringify(orderResult, (_key, value) => 
-                typeof value === 'bigint' ? value.toString() : value
-              , 2)}</pre>
+              <pre>{JSON.stringify(orderResult, null, 2)}</pre>
             </section>
           )}
         </>
