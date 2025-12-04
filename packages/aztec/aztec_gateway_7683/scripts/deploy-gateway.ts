@@ -3,8 +3,6 @@ import { createLogger } from "@aztec/foundation/log"
 import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
-import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
-import { writeFileSync, mkdirSync } from "fs"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
@@ -19,10 +17,6 @@ const [
   forwarderAddress,
   rpcUrl = "https://devnet.aztec-labs.com",
   deployWallet = "false",
-  deployToken = "false",
-  tokenName = "Test Token",
-  tokenSymbol = "TEST",
-  tokenDecimals = "18",
 ] = process.argv
 
 const main = async () => {
@@ -52,18 +46,16 @@ const main = async () => {
     EthAddress.fromString(forwarderAddress),
   )
 
-  const gatewaySentTx = deployMethod.send({
-    from: account.getAddress(),
-    contractAddressSalt: Fr.random(),
-    universalDeploy: true,
-    fee: { paymentMethod },
-  })
-
-  const gateway = await gatewaySentTx.deployed({
-    timeout: 120000,
-  })
-
-  const gatewayTxHash = await gatewaySentTx.getTxHash()
+  const gateway = await deployMethod
+    .send({
+      from: account.getAddress(),
+      contractAddressSalt: Fr.random(),
+      universalDeploy: true,
+      fee: { paymentMethod },
+    })
+    .deployed({
+      timeout: 120000,
+    })
 
   logger.info("Gateway deployed, registering...")
   await wallet.registerContract({
@@ -72,44 +64,6 @@ const main = async () => {
   })
 
   logger.info(`gateway deployed: ${gateway.address.toString()}`)
-
-  const deploymentAddresses: Record<string, string> = {
-    AztecGateway7683: gateway.address.toString(),
-    AztecGatewayDeploymentTx: gatewayTxHash.toString(),
-  }
-
-  if (deployToken === "true") {
-    logger.info("Deploying token contract...")
-    const tokenDeployMethod = TokenContract.deploy(
-      wallet,
-      tokenName,
-      tokenSymbol,
-      parseInt(tokenDecimals),
-      account.getAddress(),
-      account.getAddress(),
-    )
-
-    const token = await tokenDeployMethod
-      .send({
-        from: account.getAddress(),
-        fee: { paymentMethod },
-      })
-      .deployed({
-        timeout: 120000,
-      })
-
-    await wallet.registerContract({
-      instance: token.instance,
-      artifact: TokenContract.artifact,
-    })
-
-    logger.info(`token deployed: ${token.address.toString()}`)
-    deploymentAddresses.Token = token.address.toString()
-  }
-
-  mkdirSync("deployments", { recursive: true })
-  writeFileSync("deployments/deployment.json", JSON.stringify(deploymentAddresses, null, 2))
-  logger.info("Deployment addresses saved to deployments/deployment.json")
 }
 
 main().catch((err) => {
