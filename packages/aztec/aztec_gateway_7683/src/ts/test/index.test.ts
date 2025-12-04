@@ -1,5 +1,5 @@
 import { PXE } from "@aztec/pxe/client/bundle"
-import { EthAddress } from "@aztec/aztec.js/addresses"
+import { AztecAddress, EthAddress } from "@aztec/aztec.js/addresses"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { Fr } from "@aztec/aztec.js/fields"
 import { spawn } from "child_process"
@@ -7,9 +7,12 @@ import { createEthereumChain, createExtendedL1Client, RollupContract } from "@az
 import { hexToBytes, padHex } from "viem"
 import { poseidon2Hash, sha256ToField } from "@aztec/foundation/crypto"
 import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
-import { computeL2ToL1MembershipWitness } from "@aztec/stdlib/messaging"
+import {
+  computeL2ToL1MembershipWitness,
+  computeL2ToL1MembershipWitnessFromMessagesForAllTxs,
+} from "@aztec/stdlib/messaging"
 import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { TestWallet } from "@aztec/test-wallet/server"
 
 import { parseFilledLog, parseOpenLog, parseResolvedCrossChainOrder, parseSettledLog } from "./utils.js"
@@ -36,7 +39,6 @@ const AZTEC_TOKEN = "0x222222222222222222222222222222222222222222222222222222222
 const L2_EVM_TOKEN = "0x3333333333333333333333333333333333333333333333333333333333333333"
 const AMOUNT_OUT_ZERO = 0n
 const AMOUNT_IN_ZERO = 0n
-// const MAINNET_CHAIN_ID = 1
 const L2_DOMAIN = 11155420
 const FILL_DEADLINE = 2 ** 32 - 1
 const DESTINATION_SETTLER_EVM_L2 = EthAddress.ZERO
@@ -45,7 +47,6 @@ const DATA = "0x5555555555555555555555555555555555555555555555555555555555555555
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const setup = async (pxes: PXE[], node: AztecNode) => {
-  const [pxe1, pxe2, pxe3] = pxes
   const sponsoredFPC = await getSponsoredFPCInstance()
 
   // Create test wallets
@@ -93,7 +94,17 @@ const setup = async (pxes: PXE[], node: AztecNode) => {
     })
     .deployed()
 
-  const token = await TokenContract.deploy(wallet3, deployer.getAddress(), "TOKEN", "TKN", 18)
+  const token = await TokenContract.deployWithOpts(
+    {
+      wallet: wallet3,
+      method: "constructor_with_minter",
+    },
+    "TOKEN",
+    "TKN",
+    18,
+    deployer.getAddress(),
+    AztecAddress.ZERO,
+  )
     .send({ from: deployer.getAddress(), fee: { paymentMethod } })
     .deployed()
 
@@ -143,14 +154,10 @@ const setup = async (pxes: PXE[], node: AztecNode) => {
 describe("AztecGateway7683", () => {
   let pxes: PXE[]
   let node: AztecNode
-  let sandboxInstance
+  let sandboxInstance: any
   let skipSandbox: boolean
   let publicClient: any
   let version: bigint
-  let wallets: any[]
-  let gateway: any
-  let token: any
-  let paymentMethod: any
 
   beforeEach(async () => {
     skipSandbox = process.env.SKIP_SANDBOX === "true"
@@ -188,10 +195,9 @@ describe("AztecGateway7683", () => {
   })
 
   it("should open a public order and settle", async () => {
-    const [pxe1] = pxes
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
     const [user, filler] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [userWallet, fillerWallet] = testWallets
 
     const amountIn = 100n
     const nonce = Fr.random()
@@ -199,7 +205,7 @@ describe("AztecGateway7683", () => {
     // Set public auth witness using the wallet
     const authWitAction = token
       .withWallet(userWallet)
-      .methods.transfer_in_public(user.getAddress(), gateway.address, amountIn, nonce)
+      .methods.transfer_public_to_public(user.getAddress(), gateway.address, amountIn, nonce)
 
     await (
       await userWallet.setPublicAuthWit(
@@ -303,10 +309,9 @@ describe("AztecGateway7683", () => {
   })
 
   it("should open a private order and settle", async () => {
-    const [pxe1] = pxes
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
-    const [user, filler, deployer] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [user, filler] = wallets
+    const [userWallet, fillerWallet] = testWallets
 
     const amountIn = 100n
     const nonce = Fr.random()
@@ -314,7 +319,7 @@ describe("AztecGateway7683", () => {
       caller: gateway.address,
       action: token
         .withWallet(userWallet)
-        .methods.transfer_to_public(user.getAddress(), gateway.address, amountIn, nonce),
+        .methods.transfer_private_to_public(user.getAddress(), gateway.address, amountIn, nonce),
     })
 
     const orderData = new OrderData({
@@ -406,10 +411,9 @@ describe("AztecGateway7683", () => {
   })
 
   it("should fill a public order and send the settlement message to the forwarder", async () => {
-    const [pxe1] = pxes
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
     const [user, filler, deployer] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [userWallet, fillerWallet] = testWallets
 
     const amountOut = 100n
     const nonce = Fr.random()
@@ -438,7 +442,7 @@ describe("AztecGateway7683", () => {
           caller: gateway.address,
           action: token
             .withWallet(fillerWallet)
-            .methods.transfer_in_public(filler.getAddress(), user.getAddress(), amountOut, nonce),
+            .methods.transfer_public_to_public(filler.getAddress(), user.getAddress(), amountOut, nonce),
         },
         true,
       )
@@ -492,19 +496,18 @@ describe("AztecGateway7683", () => {
 
     // Get L2 to L1 messages and compute membership witness
     // Note: This verification is skipped as the L2->L1 messaging may not emit messages in test environment
-    // const messagesForAllTxs = await node.getL2ToL1Messages(currentBlock)
-    // if (messagesForAllTxs && messagesForAllTxs.some(msgs => msgs.length > 0)) {
-    //   const witness = await computeL2ToL1MembershipWitnessFromMessagesForAllTxs(messagesForAllTxs, l2ToL1Message)
-    //   expect(witness.leafIndex).toBe(0n)
-    //   expect(witness.siblingPath.pathSize).toBe(0)
-    // }
+    const messagesForAllTxs = await node.getL2ToL1Messages(currentBlock)
+    if (messagesForAllTxs && messagesForAllTxs.some((msgs) => msgs.length > 0)) {
+      const witness = computeL2ToL1MembershipWitnessFromMessagesForAllTxs(messagesForAllTxs, l2ToL1Message)
+      expect(witness.leafIndex).toBe(0n)
+      expect(witness.siblingPath.pathSize).toBe(0)
+    }
   })
 
   it("should fill a private order and send the settlement message to the forwarder", async () => {
-    const [pxe1] = pxes
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
     const [user, filler] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [userWallet, fillerWallet] = testWallets
 
     const amountOut = 100n
     const nonce = Fr.random()
@@ -530,7 +533,7 @@ describe("AztecGateway7683", () => {
       caller: gateway.address,
       action: token
         .withWallet(fillerWallet)
-        .methods.transfer_to_public(filler.getAddress(), gateway.address, amountOut, nonce),
+        .methods.transfer_private_to_public(filler.getAddress(), gateway.address, amountOut, nonce),
     })
 
     const fromBlock = await node.getBlockNumber()
@@ -603,8 +606,8 @@ describe("AztecGateway7683", () => {
 
   it("should open a public order and publicly claim the refund", async () => {
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
-    const [user, filler] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [user] = wallets
+    const [userWallet] = testWallets
 
     const amountIn = 100n
     const nonce = Fr.random()
@@ -615,7 +618,7 @@ describe("AztecGateway7683", () => {
           caller: gateway.address,
           action: token
             .withWallet(userWallet)
-            .methods.transfer_in_public(user.getAddress(), gateway.address, amountIn, nonce),
+            .methods.transfer_public_to_public(user.getAddress(), gateway.address, amountIn, nonce),
         },
         true,
       )
@@ -675,7 +678,7 @@ describe("AztecGateway7683", () => {
   it("should open a private order and privately claim a refund", async () => {
     const { token, gateway, wallets, testWallets, paymentMethod } = await setup(pxes, node)
     const [user] = wallets
-    const [userWallet, fillerWallet, deployerWallet] = testWallets
+    const [userWallet] = testWallets
 
     const amountIn = 100n
     const nonce = Fr.random()
@@ -683,7 +686,7 @@ describe("AztecGateway7683", () => {
       caller: gateway.address,
       action: token
         .withWallet(userWallet)
-        .methods.transfer_to_public(user.getAddress(), gateway.address, amountIn, nonce),
+        .methods.transfer_private_to_public(user.getAddress(), gateway.address, amountIn, nonce),
     })
 
     const orderData = new OrderData({
