@@ -28,6 +28,7 @@
     "@aztec/pxe": "3.0.0-devnet.2",
     "@aztec/stdlib": "3.0.0-devnet.2",
     "@aztec/test-wallet": "3.0.0-devnet.2",
+    "@defi-wonderland/aztec-standards": "3.0.0-devnet.2",
     "viem": "^2.23.13"
   },
   "devDependencies": {
