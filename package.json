@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "yarn workspaces foreach --since run build",
+    "deploy_bridge": "./scripts/deploy_bridge.sh",
     "lint": "yarn workspaces foreach --since run lint",
     "lint:fix": "yarn workspaces foreach --since run lint:fix",
     "format": "yarn workspaces foreach --since run format",
