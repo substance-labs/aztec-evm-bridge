@@ -5,3 +5,7 @@
 @aztec/contracts=lib/aztec-packages/l1-contracts/src
 @lib-keccak=lib/lib-keccak/contracts/lib
 forge-std/=lib/forge-std/src/
+src/libraries/=lib/optimism/packages/contracts-bedrock/src/libraries/
+interfaces/=lib/optimism/packages/contracts-bedrock/interfaces/
+src/cannon/=lib/optimism/packages/contracts-bedrock/src/cannon/
+src/dispute/=lib/optimism/packages/contracts-bedrock/src/dispute/
