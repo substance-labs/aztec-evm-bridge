@@ -6,6 +6,7 @@ import { parseOpenLog, parseResolvedCrossChainOrder } from "../utils/aztec.js"
 
 import type { AztecNode } from "@aztec/aztec.js/node"
 import type { ResolvedOrder } from "../types.js"
+import type BlockService from "../services/block.service.js"
 
 interface WatcherConfigs {
   service: string
@@ -15,6 +16,7 @@ interface WatcherConfigs {
   contractAddress: `0x${string}`
   eventName: string
   watchIntervalTimeMs: number
+  blockService: BlockService
   onLogs: (logs: ResolvedOrder[]) => Promise<void>
 }
 
@@ -25,6 +27,8 @@ class AztecWatcher {
   node: AztecNode
   contractAddress: `0x${string}`
   eventName: string
+  blockService: BlockService
+  serviceName: string
   private lastBlock: number
   private watchIntervalTimeMs: number
 
@@ -36,12 +40,19 @@ class AztecWatcher {
     this.eventName = configs.eventName
     this.onLogs = configs.onLogs
     this.watchIntervalTimeMs = configs.watchIntervalTimeMs
+    this.blockService = configs.blockService
+    this.serviceName = configs.service
 
     this.lastBlock = 0
   }
 
   async start() {
     try {
+      const lastBlock = await this.blockService.getLastBlock(this.serviceName)
+      if (lastBlock) {
+        this.lastBlock = lastBlock
+      }
+
       this.watch()
       setInterval(() => {
         this.watch()
@@ -59,6 +70,7 @@ class AztecWatcher {
       const fromBlock = this.lastBlock + 1
       const toBlock = currentBlock + 1
       this.lastBlock = currentBlock
+      await this.blockService.setLastBlock(this.serviceName, this.lastBlock)
 
       if (fromBlock === toBlock) {
         this.logger.info(`no new blocks detected. currentBlock is ${currentBlock}. skipping ...`)

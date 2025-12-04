@@ -6,6 +6,7 @@ import EvmWatcher from "./watchers/evm.watcher.js"
 import AztecWatcher from "./watchers/aztec.watcher.js"
 import OrderService from "./services/order.service.js"
 import SettlementService from "./services/settlement.service.js"
+import BlockService from "./services/block.service.js"
 import logger from "./utils/logger.js"
 import MultiClient from "./MultiClient.js"
 import { getAztecNode, getAztecWallet, getPxe, getWallet, initPxe, registerContracts } from "./utils/aztec.js"
@@ -99,6 +100,8 @@ const main = async () => {
     pxe: await getPxe(),
   })
 
+  const blockService = new BlockService({ db, logger })
+
   const evmWatcher = new EvmWatcher({
     service: `${l2EvmChain.name.replace(/\s+/g, "")}Watcher`,
     logger,
@@ -107,6 +110,7 @@ const main = async () => {
     abi: l2Gateway7683Abi,
     eventName: "Open",
     watchIntervalTimeMs: EVM_WATCH_INTERVAL_TIME_MS,
+    blockService,
     onLogs: async (logs: Log[]) => {
       for (const log of logs) {
         await orderService.fillEvmOrderFromLog(log)
@@ -121,6 +125,7 @@ const main = async () => {
     contractAddress: AZTEC_GATEWAY_ADDRESS,
     eventName: "Open",
     watchIntervalTimeMs: AZTEC_WATCH_INTERVAL_TIME_MS,
+    blockService,
     onLogs: async (logs) => {
       for (const log of logs) {
         await orderService.fillAztecOrderFromLog(log)

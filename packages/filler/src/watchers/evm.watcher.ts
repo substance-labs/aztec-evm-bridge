@@ -1,6 +1,7 @@
 import winston from "winston"
 
 import type { PublicClient, Log, Filter } from "viem"
+import type BlockService from "../services/block.service.js"
 
 interface WatcherConfigs {
   service: string
@@ -10,6 +11,7 @@ interface WatcherConfigs {
   abi: any
   eventName: string
   watchIntervalTimeMs: number
+  blockService: BlockService
   onLogs: (logs: Log[]) => Promise<void>
 }
 
@@ -20,6 +22,8 @@ class EvmWatcher {
   contractAddress: `0x${string}`
   abi: any
   eventName: string
+  blockService: BlockService
+  serviceName: string
   private lastBlock: bigint
   private watchIntervalTimeMs: number
 
@@ -31,12 +35,19 @@ class EvmWatcher {
     this.eventName = configs.eventName
     this.onLogs = configs.onLogs
     this.watchIntervalTimeMs = configs.watchIntervalTimeMs
+    this.blockService = configs.blockService
+    this.serviceName = configs.service
 
     this.lastBlock = 0n
   }
 
   async start() {
     try {
+      const lastBlock = await this.blockService.getLastBlock(this.serviceName)
+      if (lastBlock) {
+        this.lastBlock = BigInt(lastBlock)
+      }
+
       this.watch()
       setInterval(() => {
         this.watch()
@@ -54,6 +65,7 @@ class EvmWatcher {
       const fromBlock = this.lastBlock + 1n
       const toBlock = currentBlock
       this.lastBlock = currentBlock
+      await this.blockService.setLastBlock(this.serviceName, Number(this.lastBlock))
 
       this.logger.info(
         `looking for ${this.eventName} events from block ${fromBlock} to block ${toBlock} on ${this.client.chain!.name} ...`,
