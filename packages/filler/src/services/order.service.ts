@@ -1,7 +1,7 @@
 import { erc20Abi, padHex, sliceHex } from "viem"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { Mutex } from "async-mutex"
 import { waitForTransactionReceipt } from "viem/actions"
 
@@ -295,7 +295,7 @@ class OrderService extends BaseService {
         this.logger.info(`creating authwit to fill the order ${orderId} ...`)
         const witness = await this.aztecAccount.createAuthWit({
           caller: AztecAddress.fromString(this.aztecGatewayAddress),
-          action: token.methods.transfer_to_public(
+          action: token.methods.transfer_private_to_public(
             this.aztecAccount.getAddress(),
             AztecAddress.fromString(this.aztecGatewayAddress),
             maxSpentAmount,
@@ -323,7 +323,7 @@ class OrderService extends BaseService {
             this.aztecAccount.getAddress(),
             {
               caller: AztecAddress.fromString(this.aztecGatewayAddress),
-              action: token.methods.transfer_in_public(
+              action: token.methods.transfer_public_to_public(
                 this.aztecAccount.getAddress(),
                 AztecAddress.fromString(recipient),
                 maxSpentAmount,
