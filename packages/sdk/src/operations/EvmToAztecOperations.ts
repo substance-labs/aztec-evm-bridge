@@ -9,7 +9,7 @@ import { sleep } from "@aztec/foundation/sleep"
 import { poseidon2Hash } from "@aztec/foundation/crypto"
 import { AzguardClient } from "@azguardwallet/client"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 
 import {
   getAztecAddressFromAzguardAccount,
@@ -265,7 +265,7 @@ export class EvmToAztecOperations {
                 kind: "call",
                 caller: gatewayOut,
                 contract: orderData.outputToken,
-                method: isPrivate ? "transfer_to_public" : "transfer_in_public",
+                method: isPrivate ? "transfer_private_to_public" : "transfer_public_to_public",
                 args: isPrivate
                   ? [
                       getAztecAddressFromAzguardAccount(selectedAccount),
@@ -314,7 +314,7 @@ export class EvmToAztecOperations {
     if (isPrivate) {
       witness = await account.createAuthWit({
         caller: AztecAddress.fromString(gatewayOut),
-        action: token.methods.transfer_to_public(
+        action: token.methods.transfer_private_to_public(
           account.getAddress(),
           AztecAddress.fromString(gatewayOut),
           orderData.amountOut,
@@ -327,7 +327,7 @@ export class EvmToAztecOperations {
           account.getAddress(),
           {
             caller: AztecAddress.fromString(gatewayOut),
-            action: token.methods.transfer_in_public(
+            action: token.methods.transfer_public_to_public(
               account.getAddress(),
               AztecAddress.fromString(orderData.recipient),
               orderData.amountOut,

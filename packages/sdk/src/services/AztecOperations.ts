@@ -3,7 +3,7 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { AccountWithSecretKey } from "@aztec/aztec.js/account"
 import { Wallet } from "@aztec/aztec.js/wallet"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
@@ -150,7 +150,7 @@ export class AztecOperations {
     if (isPrivate) {
       witness = await account.createAuthWit({
         caller: AztecAddress.fromString(gatewayOut),
-        action: token.methods.transfer_to_public(
+        action: token.methods.transfer_private_to_public(
           account.getAddress(),
           AztecAddress.fromString(gatewayOut),
           orderData.amountOut,
@@ -164,7 +164,7 @@ export class AztecOperations {
           account.getAddress(),
           {
             caller: AztecAddress.fromString(gatewayOut),
-            action: token.methods.transfer_in_public(
+            action: token.methods.transfer_public_to_public(
               account.getAddress(),
               AztecAddress.fromString(orderData.recipient),
               orderData.amountOut,
