@@ -7,7 +7,7 @@ import { sleep } from "@aztec/foundation/sleep"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { createPublicClient, hexToBytes, http, padHex } from "viem"
 import * as chains from "viem/chains"
-import { TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
 
 import { getSponsoredFPCAddress, getSponsoredFPCInstance } from "../fpc.js"
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
   // Create auth witness for private transfer
   const witness = await wallet.createAuthWit(account.getAddress(), {
     caller: gateway.address,
-    action: token.methods.transfer_to_public(account.getAddress(), gateway.address, amount, nonce),
+    action: token.methods.transfer_private_to_public(account.getAddress(), gateway.address, amount, nonce),
   })
 
   const receipt = await gateway.methods

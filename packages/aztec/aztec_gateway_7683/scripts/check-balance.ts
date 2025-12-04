@@ -1,6 +1,6 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { createLogger } from "@aztec/foundation/log"
-import { TokenContract } from "@aztec/noir-contracts.js/Token"
+import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
@@ -32,7 +32,7 @@ const main = async () => {
     throw new Error(`Token contract not found on Aztec: ${tokenAddress}`)
   }
 
-  const { TokenContractArtifact } = await import("@aztec/noir-contracts.js/Token")
+  const { TokenContractArtifact } = await import("@defi-wonderland/aztec-standards/current/artifacts/Token.js")
   await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
   logger.info(`Token contract registered`)
 
