@@ -4,7 +4,7 @@ import { TxHash, TxReceipt } from "@aztec/aztec.js/tx"
 import { sleep } from "@aztec/foundation/sleep"
 import { AzguardClient } from "@azguardwallet/client"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
-import { TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { Hex } from "viem"
 import { AztecGateway7683ContractArtifact } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import { getAztecAddressFromAzguardAccount, hexToUintArray, OrderDataEncoder } from "../utils"
@@ -99,7 +99,7 @@ export class AzguardOperations {
               kind: "call",
               caller: gatewayOut,
               contract: orderData.outputToken,
-              method: isPrivate ? "transfer_to_public" : "transfer_in_public",
+              method: isPrivate ? "transfer_private_to_public" : "transfer_public_to_public",
               args: isPrivate
                 ? [
                     getAztecAddressFromAzguardAccount(selectedAccount),
@@ -164,7 +164,7 @@ export class AzguardOperations {
               kind: "call",
               caller: gatewayIn,
               contract: tokenIn,
-              method: isPrivate ? "transfer_to_public" : "transfer_in_public",
+              method: isPrivate ? "transfer_private_to_public" : "transfer_public_to_public",
               args: [getAztecAddressFromAzguardAccount(selectedAccount), gatewayIn, amountIn, nonce],
             },
           },

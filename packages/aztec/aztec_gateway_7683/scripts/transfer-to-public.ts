@@ -1,7 +1,7 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { createLogger } from "@aztec/foundation/log"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
@@ -39,7 +39,7 @@ const main = async () => {
 
   logger.info(`Transferring ${amount} tokens from private to public...`)
   await token.methods
-    .transfer_to_public(account.getAddress(), account.getAddress(), BigInt(amount), 0n)
+    .transfer_private_to_public(account.getAddress(), account.getAddress(), BigInt(amount), 0n)
     .send({
       from: account.getAddress(),
       fee: { paymentMethod },

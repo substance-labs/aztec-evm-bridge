@@ -8,7 +8,7 @@ import { TxReceipt } from "@aztec/aztec.js/tx"
 import { sleep } from "@aztec/foundation/sleep"
 import { AzguardClient } from "@azguardwallet/client"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
-import { TokenContract, TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { AztecAddress } from "@aztec/stdlib/aztec-address"
 
 import {
@@ -137,7 +137,7 @@ export class AztecToEvmOperations {
                 kind: "call",
                 caller: gatewayIn,
                 contract: tokenIn,
-                method: isPrivate ? "transfer_to_public" : "transfer_in_public",
+                method: isPrivate ? "transfer_private_to_public" : "transfer_public_to_public",
                 args: [getAztecAddressFromAzguardAccount(selectedAccount), gatewayIn, amountIn, nonce],
               },
             },
@@ -192,7 +192,7 @@ export class AztecToEvmOperations {
       if (isPrivate) {
         witness = await account.createAuthWit({
           caller: AztecAddress.fromString(gatewayIn),
-          action: token.methods.transfer_to_public(
+          action: token.methods.transfer_private_to_public(
             account.getAddress(),
             AztecAddress.fromString(gatewayIn),
             amountIn,
@@ -205,7 +205,7 @@ export class AztecToEvmOperations {
             account.getAddress(),
             {
               caller: AztecAddress.fromString(gatewayIn),
-              action: token.methods.transfer_in_public(
+              action: token.methods.transfer_public_to_public(
                 account.getAddress(),
                 AztecAddress.fromString(gatewayIn),
                 amountIn,

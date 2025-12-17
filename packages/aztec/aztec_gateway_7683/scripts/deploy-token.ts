@@ -1,8 +1,7 @@
 import { createLogger } from "@aztec/foundation/log"
 import type { DeployOptions } from "@aztec/aztec.js/contracts"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
-import { TokenContract } from "@aztec/noir-contracts.js/Token"
-
+import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
@@ -22,10 +21,11 @@ const main = async () => {
 
   const tokenDeployMethod = TokenContract.deploy(
     wallet,
-    account.getAddress(),
     tokenName,
     tokenSymbol,
     parseInt(tokenDecimals),
+    account.getAddress(),
+    account.getAddress(),
   )
   const deployOptions: DeployOptions = {
     from: account.getAddress(),

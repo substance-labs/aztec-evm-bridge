@@ -9,7 +9,7 @@ import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey, getNode } from "./utils.js"
 import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
 import { OrderData } from "../src/ts/test/OrderData.js"
-import { TokenContract } from "@aztec/noir-contracts.js/Token"
+import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 import { poseidon2Hash } from "@aztec/foundation/crypto"
 import { ContractInstanceWithAddress } from "@aztec/aztec.js/contracts"
 
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
 
   const witness = await account.createAuthWit({
     caller: gateway.address,
-    action: token.methods.transfer_to_public(account.getAddress(), gateway.address, amountOut, nonce),
+    action: token.methods.transfer_private_to_public(account.getAddress(), gateway.address, amountOut, nonce),
   } as any)
 
   console.log(`Witness created for filling order ID: ${orderId.toString()}`)

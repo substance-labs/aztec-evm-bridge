@@ -104,12 +104,14 @@ pub contract AztecGateway7683 {
 
         // transfer from gateway public balance to user private balance
         let token = u8_32_to_aztec_address(order_data.output_token);
-        let partial_note = Token::at(token)
-            .prepare_private_balance_increase(context.msg_sender().unwrap())
-            .call(&mut context);
         Token::at(token)
-            .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_out), partial_note)
-            .enqueue(&mut context);
+            .transfer_public_to_private(
+                context.this_address(),
+                context.msg_sender().unwrap(),
+                u8_32_to_u128(order_data.amount_out),
+                0
+            )
+            .call(&mut context);
 
         AztecGateway7683::at(context.this_address())
             ._update_order_status_private(order_id, FILLED)
@@ -158,7 +160,7 @@ pub contract AztecGateway7683 {
         );
 
         Token::at(u8_32_to_aztec_address(order_data.input_token))
-            .transfer_in_public(
+            .transfer_public_to_public(
                 context.this_address(),
                 u8_32_to_aztec_address(order_data.sender),
                 u8_32_to_u128(order_data.amount_in),
@@ -211,12 +213,14 @@ pub contract AztecGateway7683 {
         );
 
         let token = u8_32_to_aztec_address(order_data.input_token);
-        let partial_note = Token::at(token)
-            .prepare_private_balance_increase(context.msg_sender().unwrap())
-            .call(&mut context);
         Token::at(token)
-            .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_in), partial_note)
-            .enqueue(&mut context);
+            .transfer_public_to_private(
+                context.this_address(),
+                context.msg_sender().unwrap(),
+                u8_32_to_u128(order_data.amount_in),
+                0
+            )
+            .call(&mut context);
     }
 
     #[external("public")]
@@ -241,7 +245,7 @@ pub contract AztecGateway7683 {
 
         // transfer from filler public balance to gateway public balance
         Token::at(u8_32_to_aztec_address(order_data.output_token))
-            .transfer_in_public(
+            .transfer_public_to_public(
                 context.msg_sender().unwrap(),
                 u8_32_to_aztec_address(order_data.recipient),
                 u8_32_to_u128(order_data.amount_out),
@@ -276,7 +280,7 @@ pub contract AztecGateway7683 {
 
         // transfer from filler private balance to gateway public balance
         Token::at(u8_32_to_aztec_address(order_data.output_token))
-            .transfer_to_public(
+            .transfer_private_to_public(
                 context.msg_sender().unwrap(),
                 context.this_address(),
                 u8_32_to_u128(order_data.amount_out),
@@ -342,7 +346,7 @@ pub contract AztecGateway7683 {
             let min_received = resolved_order.min_received[i];
 
             Token::at(u8_32_to_aztec_address(min_received.token))
-                .transfer_in_public(
+                .transfer_public_to_public(
                     context.msg_sender().unwrap(),
                     context.this_address(),
                     u8_32_to_u128(min_received.amount),
@@ -382,7 +386,7 @@ pub contract AztecGateway7683 {
 
             // transfer from user private balance to gateway public balance
             Token::at(u8_32_to_aztec_address(min_received.token))
-                .transfer_to_public(
+                .transfer_private_to_public(
                     context.msg_sender().unwrap(),
                     context.this_address(),
                     u8_32_to_u128(min_received.amount),
@@ -445,7 +449,7 @@ pub contract AztecGateway7683 {
 
         // transfer from gateway public balance to user public balande
         Token::at(u8_32_to_aztec_address(order_data.input_token))
-            .transfer_in_public(
+            .transfer_public_to_public(
                 context.this_address(),
                 u8_32_to_aztec_address(filler_data_bytes),
                 u8_32_to_u128(order_data.amount_in),
@@ -497,11 +501,14 @@ pub contract AztecGateway7683 {
 
         let filler = u8_32_to_aztec_address(filler_data_bytes);
         let token = u8_32_to_aztec_address(order_data.input_token);
-        let partial_note =
-            Token::at(token).prepare_private_balance_increase(filler).call(&mut context);
         Token::at(token)
-            .finalize_transfer_to_private(u8_32_to_u128(order_data.amount_in), partial_note)
-            .enqueue(&mut context);
+            .transfer_public_to_private(
+                context.this_address(),
+                filler,
+                u8_32_to_u128(order_data.amount_in),
+                0
+            )
+            .call(&mut context);
 
         AztecGateway7683::at(context.this_address())
             ._update_order_status_private(order_id, SETTLED)

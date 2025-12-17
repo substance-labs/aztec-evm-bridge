@@ -4,7 +4,7 @@ import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC"
-import { TokenContractArtifact } from "@aztec/noir-contracts.js/Token"
+import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
 
 import { getSponsoredFPCInstance } from "./fpc.js"
 import { getPXEs, addRandomAccount } from "./utils.js"
@@ -74,10 +74,11 @@ async function main(): Promise<void> {
     .deployed()
 
   const token = await Contract.deploy(wallet3, TokenContractArtifact, [
-    deployerAccount.getAddress(),
     "Wrapped Ethereum",
     "WETH",
     18,
+    deployerAccount.getAddress(),
+    deployerAccount.getAddress(),
   ])
     .send({
       from: deployerAccount.getAddress(),
