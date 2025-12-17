@@ -3,7 +3,7 @@ import { createLogger } from "@aztec/foundation/log"
 import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
-import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { writeFileSync, mkdirSync } from "fs"
 
 import { getSponsoredFPCAddress } from "./fpc.js"

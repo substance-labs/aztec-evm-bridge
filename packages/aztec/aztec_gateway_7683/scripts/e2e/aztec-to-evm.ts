@@ -7,7 +7,7 @@ import { sleep } from "@aztec/foundation/sleep"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { createPublicClient, hexToBytes, http, padHex } from "viem"
 import * as chains from "viem/chains"
-import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
 
 import { getSponsoredFPCAddress, getSponsoredFPCInstance } from "../fpc.js"
@@ -63,12 +63,12 @@ async function main(): Promise<void> {
     instance: await getSponsoredFPCInstance(),
     artifact: SponsoredFPCContractArtifact,
   })
-
   const gateway = await Contract.at(
     AztecAddress.fromString(aztecGateway7683Address),
     AztecGateway7683ContractArtifact,
     wallet,
   )
+
   const token = await Contract.at(AztecAddress.fromString(aztecTokenAddress), TokenContractArtifact, wallet)
 
   const fillDeadline = 2 ** 32 - 1
