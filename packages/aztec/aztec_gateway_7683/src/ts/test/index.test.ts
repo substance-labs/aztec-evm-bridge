@@ -12,7 +12,7 @@ import {
   computeL2ToL1MembershipWitnessFromMessagesForAllTxs,
 } from "@aztec/stdlib/messaging"
 import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC"
-import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { TestWallet } from "@aztec/test-wallet/server"
 
 import { parseFilledLog, parseOpenLog, parseResolvedCrossChainOrder, parseSettledLog } from "./utils.js"

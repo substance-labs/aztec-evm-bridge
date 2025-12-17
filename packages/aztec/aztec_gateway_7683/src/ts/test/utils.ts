@@ -1,6 +1,13 @@
-import { Fr } from "@aztec/aztec.js"
+import { Fr } from "@aztec/aztec.js/fields"
 
 export const parseFilledLog = (log: Fr[]) => {
+  if (log.length < 13) {
+    return {
+      orderId: "",
+      fillerData: "",
+      originData: "",
+    }
+  }
   let orderId = log[0].toString()
   let fillerData = log[11].toString()
   const residualBytes = log[12].toString()
