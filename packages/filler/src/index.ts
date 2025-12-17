@@ -6,12 +6,16 @@ import EvmWatcher from "./watchers/evm.watcher.js"
 import AztecWatcher from "./watchers/aztec.watcher.js"
 import OrderService from "./services/order.service.js"
 import SettlementService from "./services/settlement.service.js"
+import { Monitor } from "./services/monitor.service.js"
+import { BalanceRepository } from "./repositories/BalanceRepository.js"
+import { config, type AztecChainConfig } from "./config.js"
 import logger from "./utils/logger.js"
 import MultiClient from "./MultiClient.js"
-import { getAztecNode, getAztecWallet, getPxe, getWallet, initPxe, registerContracts } from "./utils/aztec.js"
+import { getAztecNode } from "./utils/aztec.js"
 import l2Gateway7683Abi from "./abis/l2Gateway7683.js"
 
 import type { Log } from "viem"
+import { EmbeddedWallet } from "./wallet/EmbeddedWallet.js"
 
 const AZTEC_GATEWAY_ADDRESS = process.env.AZTEC_GATEWAY_ADDRESS as `0x${string}`
 const L2_EVM_GATEWAY_ADDRESS = process.env.L2_EVM_GATEWAY_ADDRESS as `0x${string}`
@@ -44,17 +48,15 @@ const main = async () => {
   const db = mongoClient.db(mongoDbName)
 
   // TODO: add possibility to register senders
-  await initPxe()
-
-  // Register contracts (including SponsoredFPC) before deploying account
-  logger.info("registering contracts into the PXE ...")
-  await registerContracts({
-    aztecGatewayAddress: AZTEC_GATEWAY_ADDRESS,
-  })
-
-  logger.info("deploying account...")
-  const aztecAccount = await getAztecWallet()
-  const aztecWallet = getWallet()
+  const orderWallet = await EmbeddedWallet.create(config.chains.aztec as AztecChainConfig, "filler-order-service-pxe")
+  const settlementWallet = await EmbeddedWallet.create(
+    config.chains.aztec as AztecChainConfig,
+    "filler-settlement-service-pxe",
+  )
+  const monitorWallet = await EmbeddedWallet.create(
+    config.chains.aztec as AztecChainConfig,
+    "filler-monitor-service-pxe",
+  )
 
   const l2EvmChain = (Object.values(chains) as chains.Chain[]).find(
     ({ id }) => id.toString() === (process.env.EVM_L2_CHAIN_ID as string),
@@ -73,21 +75,15 @@ const main = async () => {
   })
 
   const orderService = new OrderService({
-    aztecGatewayAddress: AZTEC_GATEWAY_ADDRESS,
-    aztecWallet,
-    aztecAccount,
-    db,
+    aztecWallet: orderWallet,
     evmMultiClient,
+    db,
     logger,
-    l2EvmChain,
-    l2EvmGatewayAddress: L2_EVM_GATEWAY_ADDRESS,
   })
 
   new SettlementService({
     aztecGatewayAddress: AZTEC_GATEWAY_ADDRESS,
-    aztecWallet,
-    aztecAccount,
-    aztecNode: await getAztecNode(),
+    aztecWallet: settlementWallet,
     beaconApiUrl: BEACON_API_URL,
     db,
     evmMultiClient,
@@ -96,34 +92,38 @@ const main = async () => {
     logger,
     l2EvmChain,
     l2EvmGatewayAddress: L2_EVM_GATEWAY_ADDRESS,
-    pxe: await getPxe(),
   })
+
+  const balanceRepository = new BalanceRepository(db)
+  const monitor = new Monitor(evmMultiClient, monitorWallet, balanceRepository, config, logger)
+  monitor.start()
 
   const evmWatcher = new EvmWatcher({
     service: `${l2EvmChain.name.replace(/\s+/g, "")}Watcher`,
     logger,
-    client: evmMultiClient.getClientByChain(l2EvmChain),
+    client: evmMultiClient.getPublicClientByChain(l2EvmChain),
     contractAddress: L2_EVM_GATEWAY_ADDRESS,
     abi: l2Gateway7683Abi,
     eventName: "Open",
     watchIntervalTimeMs: EVM_WATCH_INTERVAL_TIME_MS,
     onLogs: async (logs: Log[]) => {
       for (const log of logs) {
-        await orderService.fillEvmOrderFromLog(log)
+        console.log("Filling order from L2 EVM log:", log)
+        await orderService.fillOrderFromEvmLog(log, "aztec")
       }
     },
   })
+
   const aztecWatcher = new AztecWatcher({
     service: "AztecWatcher",
     logger,
-    pxe: await getPxe(),
-    node: await getAztecNode(),
+    wallet: orderWallet,
     contractAddress: AZTEC_GATEWAY_ADDRESS,
     eventName: "Open",
     watchIntervalTimeMs: AZTEC_WATCH_INTERVAL_TIME_MS,
     onLogs: async (logs) => {
       for (const log of logs) {
-        await orderService.fillAztecOrderFromLog(log)
+        await orderService.fillOrderFromAztecLog(log, "Base Sepolia")
       }
     },
   })
@@ -132,4 +132,8 @@ const main = async () => {
   aztecWatcher.start()
 }
 
-main()
+if (process.env.NODE_ENV !== "test") {
+  main()
+}
+
+export { main }
