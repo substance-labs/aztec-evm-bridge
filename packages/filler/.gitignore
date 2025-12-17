@@ -1,4 +1,5 @@
 store/
 .mongo-data/
-storePath/coverage/
+storePath/
+coverage/
 .env.bkp
