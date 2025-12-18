@@ -1,6 +1,6 @@
 import type { Hex } from "viem"
 import * as evmChains from "viem/chains"
-import { aztecSepolia, gatewayAddresses, PRIVATE_ORDER, PUBLIC_ORDER } from "../constants"
+import { chainsConfig, PRIVATE_ORDER, PUBLIC_ORDER } from "../constants"
 import type { InternalChain, SwapMode } from "../types"
 
 export class BridgeHelpers {
@@ -15,16 +15,11 @@ export class BridgeHelpers {
   }
 
   static getChainByChainId(chainId: number): InternalChain {
-    if (chainId === aztecSepolia.id) {
-      return aztecSepolia
+    const chainConfig = Object.values(chainsConfig).find((config) => config.chain.id === chainId)
+    if (chainConfig) {
+      return chainConfig
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const key = Object.keys(evmChains).find((key) => (evmChains as any)[key].id === chainId)
-    if (!key) {
-      throw new Error(`Chain not found for chainId: ${chainId}`)
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (evmChains as any)[key]
+    throw new Error(`Chain not found for chainId: ${chainId}`)
   }
 
   static getOrderType(mode: SwapMode): number {
@@ -41,13 +36,19 @@ export class BridgeHelpers {
   }
 
   static getGatewaysByChainIds(chainIdIn: number, chainIdOut: number): { gatewayIn: Hex; gatewayOut: Hex } {
-    const gatewayIn = gatewayAddresses[chainIdIn]
-    const gatewayOut = gatewayAddresses[chainIdOut]
+    const chainIn = Object.values(chainsConfig).find((c) => c.chain.id === chainIdIn)
+    const chainOut = Object.values(chainsConfig).find((c) => c.chain.id === chainIdOut)
 
-    if (!gatewayIn || !gatewayOut) {
-      throw new Error(`Gateway not found for chain ${!gatewayIn ? chainIdIn : chainIdOut}`)
+    if (!chainIn || !chainIn.gatewayAddress) {
+      throw new Error(`Gateway not found for chain ${chainIdIn}`)
+    }
+    if (!chainOut || !chainOut.gatewayAddress) {
+      throw new Error(`Gateway not found for chain ${chainIdOut}`)
     }
 
-    return { gatewayIn, gatewayOut }
+    return {
+      gatewayIn: chainIn.gatewayAddress,
+      gatewayOut: chainOut.gatewayAddress,
+    }
   }
 }

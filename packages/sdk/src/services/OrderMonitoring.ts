@@ -6,7 +6,7 @@ import { TxReceipt } from "@aztec/aztec.js/tx"
 import { sleep } from "@aztec/foundation/sleep"
 import { AztecGateway7683Contract } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import { getResolvedOrderByAztecLogs, parseFilledLog } from "../utils"
-import { aztecSepolia, FILLED, FILLED_PRIVATELY, gatewayAddresses } from "../constants"
+import { chainsConfig, FILLED, FILLED_PRIVATELY } from "../constants"
 import l2Gateway7683Abi from "../utils/abi/l2Gateway7683"
 import type { AztecOperations } from "./AztecOperations"
 import type { FilledLog, Order, OrderCallbacks, ResolvedOrder } from "../types"
@@ -22,7 +22,7 @@ export class OrderMonitoring {
    * Get Aztec filled log by order ID
    */
   async getAztecFilledLogByOrderId(orderId: Hex): Promise<FilledLog | undefined> {
-    const gateway = gatewayAddresses[aztecSepolia.id]
+    const gateway = chainsConfig.aztecDevnet.gatewayAddress
     const { logs } = await (
       await this.aztecOperations.getAztecNodeClient()
     ).getPublicLogs({
@@ -40,7 +40,7 @@ export class OrderMonitoring {
    * Get Aztec open log by order ID
    */
   async getAztecOpenLogByOrderId(orderId: Hex): Promise<ResolvedOrder | undefined> {
-    const gateway = gatewayAddresses[aztecSepolia.id]
+    const gateway = chainsConfig.aztecDevnet.gatewayAddress
     const { logs } = await (
       await this.aztecOperations.getAztecNodeClient()
     ).getPublicLogs({

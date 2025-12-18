@@ -3,7 +3,7 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
-import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { AccountWithSecretKey } from "@aztec/aztec.js/account"
 import { Wallet } from "@aztec/aztec.js/wallet"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
@@ -16,7 +16,7 @@ import {
   OrderDataEncoder,
   setPublicAuthWit,
 } from "../utils"
-import { aztecSepolia, gatewayAddresses, PRIVATE_ORDER, PRIVATE_ORDER_WITH_HOOK } from "../constants"
+import { chainsConfig, PRIVATE_ORDER, PRIVATE_ORDER_WITH_HOOK } from "../constants"
 import type { FillOrderDetails, OrderData } from "../types"
 
 const AZTEC_WAIT_TIMEOUT = 120000
@@ -88,7 +88,7 @@ export class AztecOperations {
    * Register the Aztec gateway and FPC contracts if not already registered
    */
   async maybeRegisterAztecGateway(): Promise<void> {
-    const gateway = gatewayAddresses[aztecSepolia.id]
+    const gateway = chainsConfig.aztecDevnet.gatewayAddress
     if (!this.#aztecGatewayRegistered) {
       const wallet = await this.getAztecWallet()
 
@@ -130,8 +130,8 @@ export class AztecOperations {
    */
   async fillEvmToAztecOrder(details: FillOrderDetails): Promise<Hex> {
     const { orderId, orderData } = details
-    const chainOut = aztecSepolia
-    const gatewayOut = gatewayAddresses[chainOut.id]
+    const chainOut = chainsConfig.aztecDevnet.chain
+    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
     const orderType = orderData.orderType
     const isPrivate = orderType === PRIVATE_ORDER || orderType === PRIVATE_ORDER_WITH_HOOK
     const orderDataEncoder = new OrderDataEncoder(orderData)
@@ -204,7 +204,7 @@ export class AztecOperations {
    * Claim a private order filled on Aztec
    */
   async claimPrivateOrder(orderId: Hex, secret: Hex, originData: Hex, fillerData: Hex): Promise<Hex> {
-    const gatewayOut = gatewayAddresses[aztecSepolia.id]
+    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()
@@ -233,7 +233,7 @@ export class AztecOperations {
    * Refund an EVM to Aztec order
    */
   async refundEvmToAztecOrder(orderId: Hex, originData: Hex): Promise<Hex> {
-    const gatewayOut = gatewayAddresses[aztecSepolia.id]
+    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()
@@ -259,7 +259,7 @@ export class AztecOperations {
    * Get order status from Aztec gateway
    */
   async getOrderStatus(orderId: Hex): Promise<number> {
-    const gatewayIn = gatewayAddresses[aztecSepolia.id]
+    const gatewayIn = chainsConfig.aztecDevnet.gatewayAddress
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()

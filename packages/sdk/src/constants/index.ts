@@ -1,7 +1,7 @@
-import { baseSepolia, sepolia } from "viem/chains"
-import { Hex, padHex } from "viem"
+import { base, baseSepolia, sepolia } from "viem/chains"
+import { Chain, Hex, padHex } from "viem"
 
-import type { InternalChain } from "../types"
+import { ChainType, type InternalChain } from "../types"
 
 export const ORDER_DATA_TYPE = "0xf00c3bf60c73eb97097f1c9835537da014e0b755fe94b25d7ac8401df66716a0"
 export const REFUND_ORDER_TYPE = "0x66ad36d8ca106da96563556152aba4b916ec696ecdd08a3e5ed368f4e473a538"
@@ -20,24 +20,6 @@ export const FORWARDER_REFUNDED_ORDERS_SLOT = 3n
 export const L2_GATEWAY_FILLED_ORDERS_SLOT = 51n
 export const L2_GATEWAY_REFUNDED_ORDERS_SLOT = 52n
 
-export const aztecSepolia: InternalChain = {
-  id: 999999,
-  name: "Aztec Sepolia",
-  rpcUrls: {
-    "aztec-devnet": {
-      http: ["https://devnet.aztec-labs.com"],
-    },
-    default: {
-      http: ["https://devnet.aztec-labs.com"],
-    },
-  },
-}
-
-export const gatewayAddresses: Record<number, Hex> = {
-  [aztecSepolia.id]: "0x1d00eed278af1188812a21fa4c2e38034424e166196229a25026ecc35c1502b9",
-  [baseSepolia.id]: "0x85752d27D29FF5D0683b8aE1B60705080CA7142f",
-}
-
 export const aztecRollupContractL1Addresses: Record<number, Hex> = {
   [sepolia.id]: "0xb05f36c9dffa76f0af639385ef44d5560e0160c1",
 }
@@ -48,4 +30,30 @@ export const forwarderAddresses: Record<number, Hex> = {
 
 export const opStackAnchorRegistryAddresses: Record<number, Hex> = {
   [sepolia.id]: "0x0729957c92A1F50590A84cb2D65D761093f3f8eB",
+}
+
+export const FORWARDER_CHAIN: Chain = baseSepolia
+
+export const chainsConfig: Record<string, InternalChain> = {
+  baseSepolia: {
+    type: ChainType.EVM,
+    chain: baseSepolia,
+    gatewayAddress: "0x36A3f6906AA16d70e70137498321363699a582cf",
+  },
+  aztecDevnet: {
+    type: ChainType.AZTEC,
+    chain: {
+      id: 999999,
+      name: "Aztec Sepolia",
+      rpcUrls: {
+        "aztec-devnet": {
+          http: ["https://devnet.aztec-labs.com"],
+        },
+        default: {
+          http: ["https://devnet.aztec-labs.com"],
+        },
+      },
+    },
+    gatewayAddress: "0x0011ca3cce73b704bba628c8ff420a9139500e9568284a74bc205dd3c28421b3",
+  },
 }
