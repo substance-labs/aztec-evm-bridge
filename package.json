@@ -27,12 +27,16 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@eslint/js": "^9.33.0",
+    "@vitest/browser": "4.0.16",
+    "@vitest/browser-playwright": "4.0.16",
+    "@vitest/coverage-v8": "4.0.16",
     "eslint": "^9.22.0",
     "husky": "^9.1.7",
     "lint-staged": ">=10",
     "pinst": ">=2",
     "prettier": "^3.6.2",
-    "typescript-eslint": "^8.39.0"
+    "typescript-eslint": "^8.39.0",
+    "vitest": "4.0.16"
   },
   "lint-staged": {
     "*.{js,ts,json}": "prettier --write"
