@@ -9,9 +9,14 @@ import type { Wallet } from "@aztec/aztec.js/wallet"
 import { TestWallet } from "@aztec/test-wallet/server"
 import { rmSync } from "fs"
 
+<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
 import { Bridge, aztecSepolia, ResolvedOrder, OrderDataEncoder, getAztecAddressFromAzguardAccount } from "../src"
+========
+import { Bridge, chainsConfig, ResolvedOrder, OrderDataEncoder } from "../../src"
+import { BridgeContext } from "../../src/context/BridgeContext"
+>>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
 
-const WETH_ON_AZTEC_SEPOLIA_ADDRESS = "0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81"
+const WETH_ON_AZTEC_SEPOLIA_ADDRESS = "0x0d48b44cb12b0e13bae0412b345b39dcf17404b4ce63a494eff54c7bc2fd9691"
 const WETH_ON_BASE_SEPOLIA_ADDRESS = "0xAf31a5CFf95131B2E0D3fa89125342984567f399"
 
 const cleanupPxeStore = () => {
@@ -127,6 +132,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
     })
   })
 
+<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
   describe("Account Handling", () => {
     it("should handle azguardClient account in CAIP format", () => {
       const caipAccount = "aztec:1:0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" as const
@@ -142,6 +148,9 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
   })
 
   describe("Aztec → Base (TestWallet)", () => {
+========
+  describe.skip("Aztec -> Base", () => {
+>>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
     it("should create a public order from Aztec to Base", async () => {
       const { wallet } = await setup()
 
@@ -155,7 +164,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       const result = await bridge.openOrder(
         {
-          chainIdIn: aztecSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
           chainIdOut: baseSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
@@ -190,7 +199,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       const result = await bridge.openOrder(
         {
-          chainIdIn: aztecSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
           chainIdOut: baseSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
@@ -221,7 +230,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         new Promise((resolve) => {
           bridge.openOrder(
             {
-              chainIdIn: aztecSepolia.id,
+              chainIdIn: chainsConfig.aztecDevnet.chain.id,
               chainIdOut: baseSepolia.id,
               amountIn: 1n,
               amountOut: 1000000000n,
@@ -243,7 +252,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       const txHash = await bridge.refundOrder({
         orderId,
-        chainIdIn: aztecSepolia.id,
+        chainIdIn: chainsConfig.aztecDevnet.chain.id,
         chainIdOut: baseSepolia.id,
       })
       expect(isHex(txHash)).toBe(true)
@@ -261,7 +270,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         new Promise((resolve) => {
           bridge.openOrder(
             {
-              chainIdIn: aztecSepolia.id,
+              chainIdIn: chainsConfig.aztecDevnet.chain.id,
               chainIdOut: baseSepolia.id,
               amountIn: 1n,
               amountOut: 1n,
@@ -286,7 +295,11 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
     })
   })
 
+<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
   describe("Base → Aztec (TestWallet)", () => {
+========
+  describe.skip("Base -> Aztec", () => {
+>>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
     it("should open a private order from Base to Aztec", async () => {
       const { wallet, aztecAddress } = await setup()
       const bridge = await Bridge.create({
@@ -302,7 +315,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       const result = await bridge.openOrder(
         {
           chainIdIn: baseSepolia.id,
-          chainIdOut: aztecSepolia.id,
+          chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
@@ -348,7 +361,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       const result = await bridge.openOrder(
         {
           chainIdIn: baseSepolia.id,
-          chainIdOut: aztecSepolia.id,
+          chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
@@ -384,7 +397,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           bridge.openOrder(
             {
               chainIdIn: baseSepolia.id,
-              chainIdOut: aztecSepolia.id,
+              chainIdOut: chainsConfig.aztecDevnet.chain.id,
               amountIn: 1n,
               amountOut: 1000000000n,
               tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
@@ -406,7 +419,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       const txHash = await bridge.refundOrder({
         orderId,
         chainIdIn: baseSepolia.id,
-        chainIdOut: aztecSepolia.id,
+        chainIdOut: chainsConfig.aztecDevnet.chain.id,
       })
       expect(isHex(txHash)).toBe(true)
     })
@@ -424,7 +437,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           bridge.openOrder(
             {
               chainIdIn: baseSepolia.id,
-              chainIdOut: aztecSepolia.id,
+              chainIdOut: chainsConfig.aztecDevnet.chain.id,
               amountIn: 1n,
               amountOut: 1n,
               tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
@@ -439,6 +452,35 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           )
         })
 
+<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
+========
+    it.skip("should open a private order from Base to Aztec and then fill it", async () => {
+      const { wallet } = await setup()
+      const bridge = await Bridge.create({
+        evmPrivateKey: process.env.EVM_PK as Hex,
+        aztecWallet: wallet,
+      })
+
+      const openOrder = (): Promise<{ orderId: Hex; resolvedOrder: ResolvedOrder }> =>
+        new Promise((resolve) => {
+          bridge.openOrder(
+            {
+              chainIdIn: baseSepolia.id,
+              chainIdOut: chainsConfig.aztecDevnet.chain.id,
+              amountIn: 1n,
+              amountOut: 1n,
+              tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
+              tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+              mode: "public",
+              data: padHex("0x"),
+              recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
+            },
+            {
+              onOrderOpened: ({ orderId, resolvedOrder }) => resolve({ orderId, resolvedOrder }),
+            },
+          )
+        })
+>>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
       const { orderId, resolvedOrder } = await openOrder()
       const txHash = await bridge.fillOrder({
         orderId,
