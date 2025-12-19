@@ -9,7 +9,7 @@ import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey, getNode } from "./utils.js"
 import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
 import { OrderData } from "../src/ts/test/OrderData.js"
-import { TokenContract } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { ContractInstanceWithAddress } from "@aztec/aztec.js/contracts"
 
 const ORDER_DATA_TYPE = "0xf00c3bf60c73eb97097f1c9835537da014e0b755fe94b25d7ac8401df66716a0"

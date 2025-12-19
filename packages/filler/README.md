@@ -40,4 +40,5 @@ Start the compiled version with:
 yarn start
 ```
 
-For operational walkthroughs and troubleshooting tips, refer to [`docs/running-the-filler.md`](docs/running-the-filler.md).
+For operational walkthroughs and troubleshooting tips, refer to
+[`docs/running-the-filler.md`](docs/running-the-filler.md).

@@ -1,17 +1,14 @@
 import winston from "winston"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
-import { PXE } from "@aztec/pxe/client/bundle"
 
 import { parseOpenLog, parseResolvedCrossChainOrder } from "../utils/aztec.js"
-
-import type { AztecNode } from "@aztec/aztec.js/node"
 import type { ResolvedOrder } from "../types.js"
+import type { EmbeddedWallet } from "../wallet/EmbeddedWallet.js"
 
 interface WatcherConfigs {
   service: string
   logger: winston.Logger
-  pxe: PXE
-  node: AztecNode
+  wallet: EmbeddedWallet
   contractAddress: `0x${string}`
   eventName: string
   watchIntervalTimeMs: number
@@ -21,8 +18,7 @@ interface WatcherConfigs {
 class AztecWatcher {
   logger: winston.Logger
   onLogs: (logs: any[]) => Promise<void>
-  pxe: PXE
-  node: AztecNode
+  wallet: EmbeddedWallet
   contractAddress: `0x${string}`
   eventName: string
   private lastBlock: number
@@ -30,8 +26,7 @@ class AztecWatcher {
 
   constructor(configs: WatcherConfigs) {
     this.logger = configs.logger.child({ service: configs.service })
-    this.pxe = configs.pxe
-    this.node = configs.node
+    this.wallet = configs.wallet
     this.contractAddress = configs.contractAddress
     this.eventName = configs.eventName
     this.onLogs = configs.onLogs
@@ -51,7 +46,8 @@ class AztecWatcher {
 
   private async watch() {
     try {
-      const currentBlock = await this.node.getBlockNumber()
+      const node = this.wallet.getAztecNode()
+      const currentBlock = await node.getBlockNumber()
       if (!this.lastBlock) {
         this.lastBlock = currentBlock - 1
       }
@@ -66,7 +62,7 @@ class AztecWatcher {
       }
 
       this.logger.info(`looking for ${this.eventName} events from block ${fromBlock} to block ${toBlock} on Aztec ...`)
-      const { logs } = await this.node.getPublicLogs({
+      const { logs } = await node.getPublicLogs({
         fromBlock,
         toBlock: toBlock,
         contractAddress: AztecAddress.fromString(this.contractAddress),

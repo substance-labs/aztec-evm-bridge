@@ -1,119 +1,19 @@
-import { createAztecNodeClient } from "@aztec/aztec.js/node"
-import { PXE } from "@aztec/pxe/client/bundle"
-import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contract"
-import { deriveSigningKey } from "@aztec/stdlib/keys"
-import { SchnorrAccountContractArtifact } from "@aztec/accounts/schnorr"
-import { SponsoredFPCContract, SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
-import { createPXE, getPXEConfig } from "@aztec/pxe/server"
-import { createStore } from "@aztec/kv-store/lmdb"
-import { TestWallet } from "@aztec/test-wallet/server"
+import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC"
+import { createAztecNodeClient, type AztecNode } from "@aztec/aztec.js/node"
 
-import { AztecGateway7683ContractArtifact } from "../artifacts/AztecGateway7683/AztecGateway7683.js"
-
-import type { AztecNode } from "@aztec/aztec.js/node"
 import type { ContractInstanceWithAddress } from "@aztec/stdlib/contract"
 import type { ResolvedOrder } from "../types.js"
-import type { AccountWithSecretKey } from "@aztec/aztec.js/account"
 
-type RegisterContractOptions = {
-  artifact: any
-}
-
-let pxe: PXE
-let wallet: TestWallet
-let account: AccountWithSecretKey
-let accountRegistered = false
-
-export const getAztecWallet = async (): Promise<AccountWithSecretKey> => {
-  if (account) {
-    return account
-  }
-
-  const secretKey = Fr.fromHexString(process.env.AZTEC_SECRET_KEY as string)
-  const salt = Fr.fromHexString(process.env.AZTEC_SALT as string)
-
-  // Create account using TestWallet (don't deploy - account already exists on devnet)
-  const accountContract = await wallet.createSchnorrAccount(secretKey, salt)
-  account = await accountContract.getAccount()
-
-  return account
-}
-
-export const initPxe = async () => {
-  const node = await getAztecNode()
-  const fullConfig = {
-    ...getPXEConfig(),
-    l1Contracts: await node.getL1ContractAddresses(),
-    proverEnabled: process.env.AZTEC_PROVER_ENABLED === "true",
-  }
-  const store = await createStore("filler-pxe", {
-    dataDirectory: "store",
-    dataStoreMapSizeKb: 1e6,
-  })
-
-  // Create TestWallet instead of raw PXE
-  wallet = await TestWallet.create(node, fullConfig, {
-    store,
-    useLogSuffix: true,
-  })
-
-  // Keep reference to PXE for backward compatibility
-  pxe = wallet as any
-}
-
-export const registerContracts = async ({ aztecGatewayAddress }: { aztecGatewayAddress: string }) => {
-  await wallet.registerContract({
-    instance: await getSponsoredFPCInstance(),
-    artifact: SponsoredFPCContractArtifact,
-  })
-  await wallet.registerSender(AztecAddress.fromString(aztecGatewayAddress))
-
-  // Try to register the gateway contract if it exists on the node
-  try {
-    await registerContractWithoutInstance(AztecAddress.fromString(aztecGatewayAddress), {
-      artifact: AztecGateway7683ContractArtifact,
-    })
-  } catch (err) {
-    console.warn(`Warning: Could not register gateway contract: ${err instanceof Error ? err.message : err}`)
-    console.warn("The gateway contract may not be deployed yet on this node.")
-  }
-}
-
-export const getPxe = () => {
-  return pxe
-}
-
-export const getWallet = () => {
-  return wallet
-}
-
-export const getAztecNode = async (): Promise<AztecNode> => {
-  return await createAztecNodeClient(process.env.AZTEC_RPC_URL || "http://localhost:8080")
-}
+const SPONSORED_FPC_SALT = new Fr(0)
 
 export const getPaymentMethod = async (): Promise<SponsoredFeePaymentMethod> =>
   new SponsoredFeePaymentMethod(await getSponsoredFPCAddress())
 
-export const registerContractWithoutInstance = async (
-  address: AztecAddress,
-  { artifact }: RegisterContractOptions,
-): Promise<void> => {
-  const node = await getAztecNode()
-  const contractInstance = await node.getContract(address)
-
-  if (!contractInstance) {
-    throw new Error(`Contract instance not found for address ${address.toString()}`)
-  }
-
-  // Use PXE directly for registering existing contracts (not TestWallet wrapper)
-  // TestWallet.registerContract() has stricter validation that fails for node-fetched instances
-  await pxe.registerContract({
-    instance: contractInstance as ContractInstanceWithAddress,
-    artifact,
-  })
+export const getAztecNode = (): AztecNode => {
+  return createAztecNodeClient(process.env.AZTEC_RPC_URL || "https://devnet.aztec-labs.com")
 }
 
 export const parseOpenLog = (log1: Fr[], log2: Fr[]) => {
@@ -208,8 +108,6 @@ export const parseResolvedCrossChainOrder = (resolvedOrder: string): ResolvedOrd
   }
 }
 
-const SPONSORED_FPC_SALT = new Fr(0)
-
 export async function getSponsoredFPCInstance(): Promise<ContractInstanceWithAddress> {
   return await getContractInstanceFromInstantiationParams(SponsoredFPCContract.artifact, {
     salt: SPONSORED_FPC_SALT,
@@ -218,13 +116,4 @@ export async function getSponsoredFPCInstance(): Promise<ContractInstanceWithAdd
 
 export async function getSponsoredFPCAddress() {
   return (await getSponsoredFPCInstance()).address
-}
-
-export async function getDeployedSponsoredFPCAddress(pxe: PXE) {
-  const fpc = await getSponsoredFPCAddress()
-  const contracts = await pxe.getContracts()
-  if (!contracts.find((c) => c.equals(fpc))) {
-    throw new Error("SponsoredFPC not deployed.")
-  }
-  return fpc
 }

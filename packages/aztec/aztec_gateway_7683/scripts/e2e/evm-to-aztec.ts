@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     transport: http(),
   })
 
-  const amount = 100n * 10n ** 18n
+  const amount = 100n
   logger.info("approving tokens ...")
   let currentNonce = await evmPublicClient.getTransactionCount({ address: evmWalletClient.account.address })
   let txHash = await evmWalletClient.writeContract({

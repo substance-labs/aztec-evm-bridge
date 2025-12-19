@@ -1,32 +1,34 @@
 {
   "name": "@substancelabs/filler",
   "version": "0.0.1",
-  "private": true,
   "main": "index.js",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "dev": " NODE_NO_WARNINGS=1 node --loader ts-node/esm src/index.ts",
-    "mongo:start": "docker start aztec-filler-mongo 2>/dev/null || docker run -d --name aztec-filler-mongo -p 27017:27017 -v $(pwd)/.mongo-data:/data/db mongo:latest",
-    "mongo:stop": "docker stop aztec-filler-mongo",
-    "mongo:remove": "docker stop aztec-filler-mongo 2>/dev/null && docker rm aztec-filler-mongo",
+    "mongo:start": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker start $name 2>/dev/null || docker run -d --name $name -p $port:27017 -v $(pwd)/.mongo-data/$port:/data/db mongo:latest",
+    "mongo:stop": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker stop $name",
+    "mongo:remove": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker stop $name 2>/dev/null && docker rm $name",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\""
+    "format": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "author": "Substance Labs",
   "license": "MIT",
   "description": "",
   "dependencies": {
-    "@aztec/accounts": "3.0.0-devnet.2",
-    "@aztec/aztec.js": "3.0.0-devnet.2",
-    "@aztec/kv-store": "3.0.0-devnet.2",
-    "@aztec/noir-contracts.js": "3.0.0-devnet.2",
-    "@aztec/pxe": "3.0.0-devnet.2",
-    "@aztec/stdlib": "3.0.0-devnet.2",
+    "@aztec/accounts": "3.0.0-devnet.5",
+    "@aztec/aztec.js": "3.0.0-devnet.5",
+    "@aztec/kv-store": "3.0.0-devnet.5",
+    "@aztec/noir-contracts.js": "3.0.0-devnet.5",
+    "@aztec/pxe": "3.0.0-devnet.5",
+    "@aztec/stdlib": "3.0.0-devnet.5",
     "@chainsafe/persistent-merkle-tree": "^1.1.0",
     "@chainsafe/ssz": "^1.2.0",
+    "@defi-wonderland/aztec-standards": "0.0.0-c2c410ee",
     "@lodestar/types": "^1.35.0",
     "async-mutex": "^0.5.0",
     "dotenv": "^16.4.7",
@@ -35,9 +37,11 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.15",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.15"
   },
   "resolutions": {
     "jackspeak": "2.1.1",

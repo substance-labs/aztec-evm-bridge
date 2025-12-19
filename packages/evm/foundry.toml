@@ -11,3 +11,4 @@ optimizer-runs = 200
 libraries = ["src/libs/Poseidon2.sol:Poseidon2:0x5182eCEF5Ffb88d3DcE2b154c9F16c5FC0fE5B4a"]
 
 extra_output = ["storageLayout"]
+fs_permissions = [{ access = "read-write", path = "./deployments/" }]
