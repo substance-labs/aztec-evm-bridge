@@ -5,11 +5,11 @@ import { Fr } from "@aztec/aztec.js/fields"
 import { bytesToHex, encodeAbiParameters, keccak256 } from "viem"
 import { waitForTransactionReceipt } from "viem/actions"
 const { ssz } = await import("@lodestar/types")
-const { BeaconBlock } = ssz.fulu
 const { createProof, ProofType } = await import("@chainsafe/persistent-merkle-tree")
 import { Mutex } from "async-mutex"
 import { computeL2ToL1MembershipWitness } from "@aztec/stdlib/messaging"
 import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
+import type { Chain } from "viem"
 
 import BaseService from "./base.service.js"
 import {
@@ -32,24 +32,22 @@ import l2Gateway7683Abi from "../abis/l2Gateway7683.js"
 import anchorRegistryAbi from "../abis/anchorRegistry.js"
 import rollupAbi from "../abis/rollup.js"
 import { AztecGateway7683Contract } from "../artifacts/AztecGateway7683/AztecGateway7683.js"
-
-import type { Chain } from "viem"
 import type { BaseServiceOpts } from "./base.service.js"
 import type { Order } from "../types.js"
 import type MultiClient from "../MultiClient.js"
+import type { EmbeddedWallet } from "../wallet/EmbeddedWallet.js"
+
+const { BeaconBlock } = ssz.fulu
 
 export type SettlementServiceOpts = BaseServiceOpts & {
-  aztecWallet: any
-  aztecAccount: any
+  aztecWallet: EmbeddedWallet
   aztecGatewayAddress: `0x${string}`
-  aztecNode: any
   beaconApiUrl: string
   evmMultiClient: MultiClient
   forwarderAddress: `0x${string}`
   l1Chain: Chain
   l2EvmChain: Chain
   l2EvmGatewayAddress: `0x${string}`
-  pxe: any
 }
 
 const getExecutionStateRootProof = (block: any): { proof: string[]; leaf: string } => {
@@ -68,17 +66,14 @@ const getExecutionStateRootProof = (block: any): { proof: string[]; leaf: string
 }
 
 class SettlementService extends BaseService {
-  aztecWallet: any
-  aztecAccount: any
+  aztecWallet: EmbeddedWallet
   aztecGatewayAddress: `0x${string}`
-  aztecNode: any
   beaconApiUrl: string
   evmMultiClient: MultiClient
   forwarderAddress: `0x${string}`
   l1Chain: Chain
   l2EvmChain: Chain
   l2EvmGatewayAddress: `0x${string}`
-  pxe: any
   forwardOrderSettlementMutex: Mutex
   settleOrderMutex: Mutex
 
@@ -86,12 +81,9 @@ class SettlementService extends BaseService {
     super(opts)
 
     this.aztecWallet = opts.aztecWallet
-    this.aztecAccount = opts.aztecAccount
     this.evmMultiClient = opts.evmMultiClient
     this.aztecGatewayAddress = opts.aztecGatewayAddress
     this.forwarderAddress = opts.forwarderAddress
-    this.pxe = opts.pxe
-    this.aztecNode = opts.aztecNode
     this.l1Chain = opts.l1Chain
     this.l2EvmChain = opts.l2EvmChain
     this.l2EvmGatewayAddress = opts.l2EvmGatewayAddress
@@ -154,17 +146,19 @@ class SettlementService extends BaseService {
 
       // NOTE: At the moment we support only Base Sepolia
 
-      const l2EvmClient = this.evmMultiClient.getClientByChain(this.l2EvmChain)
-      const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
+      const { publicClient: l2EvmPublicClient } = this.evmMultiClient.getClientByChain(this.l2EvmChain)
+      const { publicClient: l1PublicClient, walletClient: l1WalletClient } = this.evmMultiClient.getClientByChain(
+        this.l1Chain,
+      )
 
-      const [_, l2EvmAnchorRootblockNumber] = (await l1Client.readContract({
+      const [_, l2EvmAnchorRootblockNumber] = (await l1PublicClient.readContract({
         abi: anchorRegistryAbi,
         functionName: "getAnchorRoot",
         args: [],
         address: OP_STACK_ANCHOR_REGISTRY_ADDRESS,
       })) as [`0x${string}`, bigint]
 
-      const receipt = await l2EvmClient.getTransactionReceipt({ hash: order.fillTxHash as `0x${string}` })
+      const receipt = await l2EvmPublicClient.getTransactionReceipt({ hash: order.fillTxHash as `0x${string}` })
       if (receipt.blockNumber > l2EvmAnchorRootblockNumber) {
         this.logger.info(
           `cannot forward settlement to Aztec for order ${order.orderId} because the corresponding block number ${receipt.blockNumber} is > than the anchor root one ${l2EvmAnchorRootblockNumber} ...`,
@@ -176,7 +170,7 @@ class SettlementService extends BaseService {
         encodeAbiParameters([{ type: "bytes32" }, { type: "uint256" }], [order.orderId, L2_GATEWAY_FILLED_ORDERS_SLOT]),
       )
 
-      const proof = await l2EvmClient.request({
+      const proof = await l2EvmPublicClient.request({
         method: "eth_getProof",
         params: [this.l2EvmGatewayAddress, [storageKey], `0x${l2EvmAnchorRootblockNumber.toString(16)}`],
       })
@@ -189,7 +183,7 @@ class SettlementService extends BaseService {
       }
 
       // @ts-ignore
-      const forwardSettleTxHash = await l1Client.writeContract({
+      const forwardSettleTxHash = await l1WalletClient.writeContract({
         abi: forwarderAbi,
         // account: l1Client.account.address,
         address: this.forwarderAddress,
@@ -205,7 +199,7 @@ class SettlementService extends BaseService {
       this.logger.info(
         `waiting for forwardSettleToAztec transaction confirmation of ${forwardSettleTxHash} for order ${order.orderId} ...`,
       )
-      await waitForTransactionReceipt(l1Client, { hash: forwardSettleTxHash })
+      await waitForTransactionReceipt(l1PublicClient, { hash: forwardSettleTxHash })
 
       this.logger.info(
         `settlement succesfully forwarded to Aztec for order ${order.orderId}. tx hash: ${forwardSettleTxHash}`,
@@ -254,12 +248,12 @@ class SettlementService extends BaseService {
 
       const orderSettlementBlockNumber = (await gateway.methods
         .get_order_settlement_block_number(Fr.fromBufferReduce(Buffer.from(order.orderId.slice(2), "hex")))
-        .simulate({ from: this.aztecAccount.getAddress() })) as bigint
+        .simulate({ from: this.aztecWallet.getAddress() })) as bigint
 
       const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
       let provenBlockNumber: bigint
       try {
-        provenBlockNumber = (await l1Client.readContract({
+        provenBlockNumber = (await l1Client.publicClient.readContract({
           address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
           args: [],
           abi: rollupAbi,
@@ -288,8 +282,10 @@ class SettlementService extends BaseService {
         return
       }
 
-      const witness = await computeL2ToL1MembershipWitness(
-        this.aztecNode,
+      let witness
+
+      witness = await computeL2ToL1MembershipWitness(
+        this.aztecWallet.getAztecNode(),
         parseInt(orderSettlementBlockNumber.toString()),
         l2ToL1Message,
       )
@@ -301,7 +297,7 @@ class SettlementService extends BaseService {
       const { root, leafIndex: l2ToL1MessageIndex, siblingPath } = witness
 
       // @ts-ignore
-      const forwardSettleTxHash = await l1Client.writeContract({
+      const forwardSettleTxHash = await l1Client.walletClient.writeContract({
         abi: forwarderAbi,
         // account: l1Client.account.address,
         address: this.forwarderAddress,
@@ -322,7 +318,7 @@ class SettlementService extends BaseService {
       this.logger.info(
         `waiting for forwardSettleToL2 transaction confirmation of ${forwardSettleTxHash} for order ${order.orderId} ...`,
       )
-      await waitForTransactionReceipt(l1Client, { hash: forwardSettleTxHash })
+      await waitForTransactionReceipt(l1Client.publicClient, { hash: forwardSettleTxHash })
 
       this.logger.info(
         `settlement succesfully forwarded to L2 for order ${order.orderId}. tx hash: ${forwardSettleTxHash}`,
@@ -395,7 +391,7 @@ class SettlementService extends BaseService {
       this.logger.info(`settling order ${order.orderId} on L2 ...`)
 
       const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
-      const l2EvmClient = this.evmMultiClient.getClientByChain(this.l2EvmChain)
+      const l2Client = this.evmMultiClient.getClientByChain(this.l2EvmChain)
 
       const message = [
         Buffer.from(SETTLE_ORDER_TYPE.slice(2), "hex"),
@@ -404,7 +400,8 @@ class SettlementService extends BaseService {
       ]
       const messageHash = sha256ToField(message)
 
-      const { parentBeaconBlockRoot: beaconRoot, timestamp: beaconOracleTimestamp } = await l2EvmClient.getBlock()
+      const { parentBeaconBlockRoot: beaconRoot, timestamp: beaconOracleTimestamp } =
+        await l2Client.publicClient.getBlock()
 
       this.logger.info(`Fetching beacon block ${beaconRoot} from ${this.beaconApiUrl}`)
 
@@ -431,7 +428,7 @@ class SettlementService extends BaseService {
           [messageHash.toString(), FORWARDER_SETTLE_ORDER_SLOT],
         ),
       )
-      const proof = await l1Client.getProof({
+      const proof = await l1Client.publicClient.getProof({
         address: this.forwarderAddress,
         storageKeys: [storageKey],
         blockNumber: l1BlockNumber,
@@ -457,8 +454,7 @@ class SettlementService extends BaseService {
       }
 
       // @ts-ignore
-      const settleTxHash = await l2EvmClient.writeContract({
-        // account: l2EvmClient.account.address,
+      const settleTxHash = await l2Client.walletClient.writeContract({
         address: this.l2EvmGatewayAddress,
         chain: this.l2EvmChain,
         functionName: "settle",
@@ -466,7 +462,7 @@ class SettlementService extends BaseService {
         abi: l2Gateway7683Abi,
       })
       this.logger.info(`waiting for transaction confirmation of ${settleTxHash} ...`)
-      await waitForTransactionReceipt(l2EvmClient, { hash: settleTxHash })
+      await waitForTransactionReceipt(l2Client.publicClient, { hash: settleTxHash })
 
       this.logger.info(`order ${order.orderId} succesfully settled. tx hash: ${settleTxHash}`)
       await this.db.collection("orders").findOneAndUpdate(
