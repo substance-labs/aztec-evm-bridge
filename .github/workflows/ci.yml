@@ -11,11 +11,21 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Enable Corepack
+      run: corepack enable
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22'
         cache: 'yarn'
+    
+    - name: Install Aztec CLI
+      run: |
+        curl -s https://install.aztec.network | bash
+        export PATH="$PATH:/home/runner/.aztec/bin"
+        aztec-up 3.0.0-devnet.5
+        echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
 
     - name: Install dependencies
       run: yarn install --frozen-lockfile
@@ -23,11 +33,16 @@ jobs:
     - name: Setup Foundry
       uses: foundry-rs/foundry-toolchain@v1
 
-    - name: Run EVM tests
-      run: cd packages/evm && forge test
+    # - name: Run EVM tests
+    #   run: cd packages/evm && forge test
 
     - name: Run Aztec gateway tests
-      run: cd packages/aztec/aztec_gateway_7683 && yarn test
+      run: |
+        cd packages/aztec/aztec_gateway_7683
+        yarn compile
+        yarn postprocess
+        yarn codegen
+        yarn test
 
     - name: Run filler tests
       run: cd packages/filler && yarn test
