@@ -7,9 +7,9 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf ./src/artifacts ./target",
+    "build": "yarn compile && yarn codegen",
     "codegen": "aztec codegen target --outdir src/artifacts --force",
-    "postprocess": "aztec-postprocess-contract",
-    "compile": "${AZTEC_NARGO:-aztec-nargo} compile",
+    "compile": "aztec compile",
     "deploy": "node --loader ts-node/esm scripts/deploy.ts",
     "format": "prettier --write \"src/ts/**/*.ts\" \"scripts/**/*.ts\"",
     "lint": "eslint .",
@@ -21,14 +21,15 @@
     "update-readme-version": "node ./.github/scripts/update-readme-version.js"
   },
   "dependencies": {
-    "@aztec/accounts": "3.0.0-devnet.5",
-    "@aztec/aztec.js": "3.0.0-devnet.5",
-    "@aztec/kv-store": "3.0.0-devnet.5",
-    "@aztec/noir-contracts.js": "3.0.0-devnet.5",
-    "@aztec/pxe": "3.0.0-devnet.5",
-    "@aztec/stdlib": "3.0.0-devnet.5",
-    "@aztec/test-wallet": "3.0.0-devnet.5",
-    "@defi-wonderland/aztec-standards": "0.0.0-c2c410ee",
+    "@aztec/accounts": "3.0.0-nightly.20251212",
+    "@aztec/aztec.js": "3.0.0-nightly.20251212",
+    "@aztec/ethereum": "3.0.0-nightly.20251212",
+    "@aztec/kv-store": "3.0.0-nightly.20251212",
+    "@aztec/noir-contracts.js": "3.0.0-nightly.20251212",
+    "@aztec/pxe": "3.0.0-nightly.20251212",
+    "@aztec/stdlib": "3.0.0-nightly.20251212",
+    "@aztec/test-wallet": "3.0.0-nightly.20251212",
+    "@defi-wonderland/aztec-standards": "3.0.0-nightly.20251212",
     "viem": "^2.23.13"
   },
   "devDependencies": {
@@ -44,7 +45,7 @@
   },
   "resolutions": {
     "jackspeak": "2.1.1",
-    "@aztec/foundation": "3.0.0-devnet.5"
+    "@aztec/foundation": "3.0.0-nightly.20251212"
   },
   "jest": {
     "testTimeout": 200000

@@ -38,6 +38,6 @@
     "*.{js,ts,json}": "prettier --write"
   },
   "resolutions": {
-    "@aztec/foundation": "3.0.0-devnet.2"
+    "@aztec/foundation": "3.0.0-nightly.20251212"
   }
 }
