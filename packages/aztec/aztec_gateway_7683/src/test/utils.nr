@@ -25,10 +25,10 @@ pub struct TestSetup {
 pub unconstrained fn setup() -> TestSetup {
     let mut env = TestEnvironment::new();
     
-    // Create test accounts
-    let owner = env.create_light_account();
-    let user1 = env.create_light_account();
-    let user2 = env.create_light_account();
+    // Create test accounts - use contract accounts for authwit support
+    let owner = env.create_contract_account();
+    let user1 = env.create_contract_account();
+    let user2 = env.create_contract_account();
     
     // Mock addresses for L2 gateway and forwarder
     let l2_gateway = EthAddress::from_field(0x1234567890abcdef);
