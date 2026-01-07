@@ -195,7 +195,9 @@ describe("AztecGateway7683", () => {
         detached: true,
         stdio: "ignore",
       })
+      console.info("Starting aztec sandbox...")
       await sleep(15000) // wait for sandbox to be ready
+      console.info("Aztec sandbox started")
     }
     node = createAztecNodeClient("http://localhost:8080")
     const nodeInfo = await node.getNodeInfo()
