@@ -196,7 +196,7 @@ describe("AztecGateway7683", () => {
         stdio: "ignore",
       })
       console.info("Starting aztec sandbox...")
-      await sleep(15000) // wait for sandbox to be ready
+      await sleep(45000) // wait for sandbox to be ready
       console.info("Aztec sandbox started")
     }
     node = createAztecNodeClient("http://localhost:8080")
