@@ -50,8 +50,9 @@ pub contract AztecGateway7683 {
         macros::{functions::{external, initializer, internal, view}, storage::storage},
         protocol_types::{
             address::{AztecAddress, EthAddress},
-            hash::{poseidon2_hash, sha256_to_field},
+            hash::{poseidon2_hash, poseidon2_hash_with_separator, sha256_to_field},
             traits::{Packable, Serialize},
+            constants::GENERATOR_INDEX__SECRET_HASH,
         },
         state_vars::{Map, PublicImmutable, PublicMutable},
     };
@@ -98,7 +99,7 @@ pub contract AztecGateway7683 {
 
         let order_data = OrderData::decode(origin_data_bytes);
         assert(
-            poseidon2_hash([secret]) == Field::from_be_bytes(order_data.recipient),
+            poseidon2_hash_with_separator([secret], GENERATOR_INDEX__SECRET_HASH) == Field::from_be_bytes(order_data.recipient),
             "Invalid secret",
         );
 
@@ -188,7 +189,7 @@ pub contract AztecGateway7683 {
         let order_data = OrderData::decode(origin_data_bytes);
         let order_type = order_data.order_type;
         assert(
-            poseidon2_hash([secret]) == Field::from_be_bytes(order_data.recipient),
+            poseidon2_hash_with_separator([secret], GENERATOR_INDEX__SECRET_HASH) == Field::from_be_bytes(order_data.recipient),
             "Invalid secret",
         );
         assert(
