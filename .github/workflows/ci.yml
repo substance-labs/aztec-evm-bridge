@@ -45,7 +45,13 @@ jobs:
         yarn test
 
     - name: Run filler tests
-      run: cd packages/filler && yarn test
+      run: |
+        cd packages/filler
+        yarn build
+        yarn test
 
     - name: Run SDK tests
-      run: cd packages/sdk && yarn test
+      run: |
+        cd packages/sdk
+        yarn build
+        yarn test:unit
