@@ -1,17 +1,16 @@
 import { AztecAddress, EthAddress } from "@aztec/aztec.js/addresses"
-import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
+import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee/testing"
 import { Fr } from "@aztec/aztec.js/fields"
 import { GeneratorIndex } from "@aztec/constants"
 import { ChildProcess, spawn } from "child_process"
-import {
-  createEthereumChain,
-  createExtendedL1Client,
-  ExtendedViemWalletClient,
-  L1ContractAddresses,
-  RollupContract,
-} from "@aztec/ethereum"
+import { createEthereumChain } from "@aztec/ethereum/chain"
+import { createExtendedL1Client } from "@aztec/ethereum/client"
+import { ExtendedViemWalletClient } from "@aztec/ethereum/types"
+import { L1ContractAddresses } from "@aztec/ethereum/l1-contract-addresses"
+import { RollupContract } from "@aztec/ethereum/contracts"
 import { hexToBytes, padHex, parseAbi, sha256, toHex, decodeEventLog } from "viem"
-import { poseidon2HashWithSeparator, sha256ToField } from "@aztec/foundation/crypto"
+import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/poseidon"
+import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
 import {
   computeL2ToL1MembershipWitness,
@@ -81,10 +80,7 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
 
   // Register FPC with each wallet
   for (const wallet of [userWallet, fillerWallet, deployerWallet]) {
-    await wallet.registerContract({
-      instance: sponsoredFPC,
-      artifact: SponsoredFPCContract.artifact,
-    })
+    await wallet.registerContract(sponsoredFPC, SponsoredFPCContract.artifact)
   }
 
   const paymentMethod = new SponsoredFeePaymentMethod(sponsoredFPC.address)
@@ -101,7 +97,7 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
   await userWallet.registerSender(deployer.getAddress())
   await fillerWallet.registerSender(deployer.getAddress())
 
-  const gateway = await AztecGateway7683Contract.deploy(
+  const { contract: gateway, instance: gatewayInstance } = await AztecGateway7683Contract.deploy(
     deployerWallet,
     DESTINATION_SETTLER_EVM_L2,
     L2_DOMAIN,
@@ -113,9 +109,9 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
       from: deployer.getAddress(),
       fee: { paymentMethod },
     })
-    .deployed()
+    .wait()
 
-  const token = await TokenContract.deployWithOpts(
+  const { contract: token, instance: tokenInstance } = await TokenContract.deployWithOpts(
     {
       wallet: deployerWallet,
       method: "constructor_with_minter",
@@ -127,17 +123,11 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
     AztecAddress.ZERO,
   )
     .send({ from: deployer.getAddress(), fee: { paymentMethod } })
-    .deployed()
+    .wait()
 
   for (const wallet of [userWallet, fillerWallet, deployerWallet]) {
-    await wallet.registerContract({
-      instance: token.instance,
-      artifact: TokenContractArtifact,
-    })
-    await wallet.registerContract({
-      instance: gateway.instance,
-      artifact: AztecGateway7683ContractArtifact,
-    })
+    await wallet.registerContract(tokenInstance, TokenContractArtifact)
+    await wallet.registerContract(gatewayInstance, AztecGateway7683ContractArtifact)
   }
 
   const amount = 1000n * 10n ** 18n
@@ -191,13 +181,11 @@ describe("AztecGateway7683", () => {
 
   beforeAll(async () => {
     if (!skipSandbox) {
-      sandboxInstance = spawn("aztec", ["start", "--sandbox"], {
+      sandboxInstance = spawn("aztec", ["start", "--local-network"], {
         detached: true,
         stdio: "ignore",
       })
-      console.info("Starting aztec sandbox...")
       await sleep(45000) // wait for sandbox to be ready
-      console.info("Aztec sandbox started")
     }
     node = createAztecNodeClient("http://localhost:8080")
     const nodeInfo = await node.getNodeInfo()
@@ -793,7 +781,7 @@ describe("AztecGateway7683", () => {
       .simulate({ from: userAddress })
 
     // Get L2 to L1 messages and compute membership witness
-    const L2ToL1witness = await computeL2ToL1MembershipWitness(node, Number(orderSettlementBlockNumber), l2ToL1Message)
+    const L2ToL1witness = await computeL2ToL1MembershipWitness(node, orderSettlementBlockNumber, l2ToL1Message)
     expect(L2ToL1witness).toBeDefined()
     if (!L2ToL1witness) return
     expect(L2ToL1witness.leafIndex).toBe(0n)
