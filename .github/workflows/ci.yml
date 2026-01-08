@@ -54,4 +54,5 @@ jobs:
       run: |
         cd packages/sdk
         yarn build
+        yarn playwright install --with-deps chromium
         yarn test:unit
