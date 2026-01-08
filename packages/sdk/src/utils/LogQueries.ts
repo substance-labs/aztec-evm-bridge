@@ -25,13 +25,9 @@ export class LogQueries {
       contractAddress: AztecAddress.fromString(gateway),
     })
 
-    console.log("Fetched logs:", logs.length)
-    console.log("Looking for orderId:", orderId)
-
     // Filter for Filled events (they have 13 fields: fields[0-12])
     // Open events have 13 fields but different structure
     const filledLogs = logs.filter(({ log }) => log.fields.length === 13 && log.fields[11] !== undefined)
-    console.log("Filled logs count:", filledLogs.length)
 
     const parsedLogs = filledLogs.map(({ log }) => parseFilledLog(log.fields))
     return parsedLogs.find((log) => log.orderId === orderId)

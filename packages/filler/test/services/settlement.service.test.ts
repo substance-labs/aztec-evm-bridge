@@ -23,6 +23,10 @@ vi.mock("../../src/constants.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/constants.js")>()
   return {
     ...actual,
+    FORWARDER_ADDRESS: "0x1234567890123456789012345678901234567890",
+    AZTEC_ROLLUP_CONTRACT_L1_ADDRESS: "0x1234567890123456789012345678901234567890",
+    OP_STACK_ANCHOR_REGISTRY_ADDRESS: "0x1234567890123456789012345678901234567890",
+    FORWARDER_CHAIN_ID: 1,
     get IS_SANDBOX_ENV() {
       return mockIsSandboxEnv
     },
