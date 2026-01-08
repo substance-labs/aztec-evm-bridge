@@ -1,4 +1,10 @@
-type BrowserEnvKeys = "BROWSER_E2E" | "AZTEC_NODE_URL" | "EVM_PK" | "AZTEC_SECRET_KEY" | "AZTEC_KEY_SALT"
+type BrowserEnvKeys =
+  | "BROWSER_E2E"
+  | "AZTEC_NODE_URL"
+  | "EVM_PK"
+  | "EVM_ADDRESS"
+  | "AZTEC_SECRET_KEY"
+  | "AZTEC_KEY_SALT"
 
 type BrowserTestEnv = Partial<Record<BrowserEnvKeys, string>>
 
