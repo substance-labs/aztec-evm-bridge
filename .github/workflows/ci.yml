@@ -24,7 +24,7 @@ jobs:
       run: |
         curl -s https://install.aztec.network | bash
         export PATH="$PATH:/home/runner/.aztec/bin"
-        aztec-up 3.0.0-devnet.5
+        aztec-up 3.0.0-devnet.20251212
         echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
 
     - name: Install dependencies
