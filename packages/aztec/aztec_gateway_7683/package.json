@@ -44,7 +44,7 @@
   },
   "resolutions": {
     "jackspeak": "2.1.1",
-    "@aztec/foundation": "3.0.0-devnet.2"
+    "@aztec/foundation": "3.0.0-devnet.5"
   },
   "jest": {
     "testTimeout": 200000
