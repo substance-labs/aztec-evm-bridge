@@ -24,7 +24,7 @@ import { TxHash, TxReceipt } from "@aztec/aztec.js/tx"
 import { sleep } from "@aztec/foundation/sleep"
 import { AzguardClient } from "@azguardwallet/client"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
-import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { AccountWithSecretKey } from "@aztec/aztec.js/account"
 import { poseidon2Hash, sha256ToField } from "@aztec/foundation/crypto"
 import { privateKeyToAccount } from "viem/accounts"
@@ -861,13 +861,10 @@ export class Bridge {
     const { logs } = await createAztecNodeClient(aztecSepolia.rpcUrls.default.http[0]).getPublicLogs({
       contractAddress: AztecAddress.fromString(gateway),
     })
-    console.log("Fetched logs:", logs.length)
-    console.log("Looking for orderId:", orderId)
 
     // Filter for Filled events (they have 13 fields: fields[0-12])
     // Open events have 13 fields but different structure
     const filledLogs = logs.filter(({ log }) => log.fields.length === 13 && log.fields[11] !== undefined)
-    console.log("Filled logs count:", filledLogs.length)
 
     const parsedLogs = filledLogs.map(({ log }) => parseFilledLog(log.fields))
     return parsedLogs.find((log) => log.orderId === orderId)

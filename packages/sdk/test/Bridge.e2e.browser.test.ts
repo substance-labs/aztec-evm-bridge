@@ -45,6 +45,7 @@ async function setupBrowserAztecAccount() {
     await deployMethod.send({ from: completeAddress.address }).wait()
   } catch (e) {
     // Account already deployed or error deploying
+    console.log("[browser-e2e] account deployment skipped or failed:", (e as Error).message)
   }
 
   return { wallet: testWallet, aztecAddress: accountManager.address }

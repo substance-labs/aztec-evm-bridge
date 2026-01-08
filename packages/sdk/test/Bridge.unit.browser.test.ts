@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { padHex } from "viem"
 import { baseSepolia } from "viem/chains"
-import { AztecAddress } from "@aztec/aztec.js/addresses"
-import { Fr } from "@aztec/aztec.js/fields"
 
 import {
   OrderDataEncoder,

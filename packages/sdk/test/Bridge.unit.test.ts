@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Hex, padHex, hexToBytes } from "viem"
-import { baseSepolia, sepolia, mainnet } from "viem/chains"
+import { Hex, padHex } from "viem"
+import { baseSepolia } from "viem/chains"
 import { AzguardClient } from "@azguardwallet/client"
 import type { Wallet } from "@aztec/aztec.js/wallet"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
