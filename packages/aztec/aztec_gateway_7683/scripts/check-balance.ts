@@ -33,7 +33,7 @@ const main = async () => {
   }
 
   const { TokenContractArtifact } = await import("@defi-wonderland/aztec-standards/artifacts/Token.js")
-  await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+  await wallet.registerContract(tokenInstance, TokenContractArtifact)
   logger.info(`Token contract registered`)
 
   const token = await TokenContract.at(AztecAddress.fromString(tokenAddress), wallet)

@@ -59,17 +59,14 @@ const main = async () => {
     fee: { paymentMethod },
   })
 
-  const gateway = await gatewaySentTx.deployed({
+  const { contract: gateway, instance: gatewayInstance } = await gatewaySentTx.wait({
     timeout: 120000,
   })
 
   const gatewayTxHash = await gatewaySentTx.getTxHash()
 
   logger.info("Gateway deployed, registering...")
-  await wallet.registerContract({
-    instance: gateway.instance,
-    artifact: AztecGateway7683Contract.artifact,
-  })
+  await wallet.registerContract(gatewayInstance, AztecGateway7683Contract.artifact)
 
   logger.info(`gateway deployed: ${gateway.address.toString()}`)
 
@@ -89,19 +86,16 @@ const main = async () => {
       account.getAddress(),
     )
 
-    const token = await tokenDeployMethod
+    const { contract: token, instance: tokenInstance } = await tokenDeployMethod
       .send({
         from: account.getAddress(),
         fee: { paymentMethod },
       })
-      .deployed({
+      .wait({
         timeout: 120000,
       })
 
-    await wallet.registerContract({
-      instance: token.instance,
-      artifact: TokenContract.artifact,
-    })
+    await wallet.registerContract(tokenInstance, TokenContract.artifact)
 
     logger.info(`token deployed: ${token.address.toString()}`)
     deploymentAddresses.Token = token.address.toString()

@@ -45,12 +45,9 @@ async function main(): Promise<void> {
     throw new Error(`Gateway contract instance not found for address ${aztecGateway7683Address}`)
   }
 
-  await wallet.registerContract({
-    instance: gatewayInstance as ContractInstanceWithAddress,
-    artifact: AztecGateway7683Contract.artifact,
-  })
+  await wallet.registerContract(gatewayInstance as ContractInstanceWithAddress, AztecGateway7683Contract.artifact)
 
-  const gateway = await AztecGateway7683Contract.at(AztecAddress.fromString(aztecGateway7683Address), wallet)
+  const gateway = AztecGateway7683Contract.at(AztecAddress.fromString(aztecGateway7683Address), wallet)
 
   // Register the token contract
   const tokenInstance = await node.getContract(AztecAddress.fromString(aztecTokenAddress))
@@ -58,12 +55,9 @@ async function main(): Promise<void> {
     throw new Error(`Token contract instance not found for address ${aztecTokenAddress}`)
   }
 
-  await wallet.registerContract({
-    instance: tokenInstance as ContractInstanceWithAddress,
-    artifact: TokenContract.artifact,
-  })
+  await wallet.registerContract(tokenInstance as ContractInstanceWithAddress, TokenContract.artifact)
 
-  const token = await TokenContract.at(AztecAddress.fromString(aztecTokenAddress), wallet)
+  const token = TokenContract.at(AztecAddress.fromString(aztecTokenAddress), wallet)
 
   const amountIn = 100n
   const nonce = Fr.random()

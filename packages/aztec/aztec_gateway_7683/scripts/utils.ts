@@ -30,10 +30,7 @@ export const getPxe = async (rpcUrl: string) => {
   })
 
   const fpcContractInstance = await getSponsoredFPCInstance()
-  await pxe.registerContract({
-    instance: fpcContractInstance,
-    artifact: SponsoredFPCContractArtifact,
-  })
+  await pxe.registerContract({ instance: fpcContractInstance, artifact: SponsoredFPCContractArtifact })
 
   return pxe
 }
@@ -55,10 +52,7 @@ export const getTestWallet = async (rpcUrl: string) => {
   const fpcContractInstance = await getSponsoredFPCInstance()
 
   const wallet = await TestWallet.create(node, fullConfig, { store, useLogSuffix: true })
-  await wallet.registerContract({
-    instance: fpcContractInstance,
-    artifact: SponsoredFPCContractArtifact,
-  })
+  await wallet.registerContract(fpcContractInstance, SponsoredFPCContractArtifact)
 
   return wallet
 }

@@ -18,13 +18,14 @@ export async function getSponsoredFPCAddress(): Promise<AztecAddress> {
 }
 
 export async function setupSponsoredFPC(deployer: Wallet, log: LogFn) {
-  const deployed = await SponsoredFPCContract.deploy(deployer)
+  const deployerAddress = (await deployer.getAccounts())[0].item
+  const { contract: deployed } = await SponsoredFPCContract.deploy(deployer)
     .send({
-      from: deployer.address,
+      from: deployerAddress,
       contractAddressSalt: SPONSORED_FPC_SALT,
       universalDeploy: true,
     })
-    .deployed()
+    .wait()
 
   log(`SponsoredFPC: ${deployed.address}`)
 }

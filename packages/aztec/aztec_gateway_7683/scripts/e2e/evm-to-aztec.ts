@@ -6,7 +6,7 @@ import { Fr } from "@aztec/aztec.js/fields"
 import { sleep } from "@aztec/foundation/sleep"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { createPublicClient, createWalletClient, erc20Abi, hexToBytes, http, padHex } from "viem"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon"
 import { privateKeyToAccount } from "viem/accounts"
 import * as chains from "viem/chains"
 
@@ -144,16 +144,13 @@ async function main(): Promise<void> {
     testWallet: wallet,
   })
 
-  await wallet.registerContract({
-    instance: (await node.getContract(AztecAddress.fromString(aztecGateway7683Address))) as ContractInstanceWithAddress,
-    artifact: AztecGateway7683ContractArtifact,
-  })
-  await wallet.registerContract({
-    instance: await getSponsoredFPCInstance(),
-    artifact: SponsoredFPCContractArtifact,
-  })
+  await wallet.registerContract(
+    (await node.getContract(AztecAddress.fromString(aztecGateway7683Address))) as ContractInstanceWithAddress,
+    AztecGateway7683ContractArtifact,
+  )
+  await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
 
-  const gateway = await Contract.at(
+  const gateway = Contract.at(
     AztecAddress.fromString(aztecGateway7683Address),
     AztecGateway7683ContractArtifact,
     wallet,

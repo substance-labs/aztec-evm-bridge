@@ -35,14 +35,11 @@ const main = async () => {
     fee: { paymentMethod },
   }
 
-  const token = await tokenDeployMethod.send(deployOptions).deployed({
+  const { contract: token, instance: tokenInstance } = await tokenDeployMethod.send(deployOptions).wait({
     timeout: 120000,
   })
 
-  await wallet.registerContract({
-    instance: token.instance,
-    artifact: TokenContract.artifact,
-  })
+  await wallet.registerContract(tokenInstance, TokenContract.artifact)
 
   logger.info(`token deployed: ${token.address.toString()}`)
 }

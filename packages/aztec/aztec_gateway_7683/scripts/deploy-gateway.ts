@@ -46,22 +46,19 @@ const main = async () => {
     EthAddress.fromString(forwarderAddress),
   )
 
-  const gateway = await deployMethod
+  const { contract: gateway, instance: gatewayInstance } = await deployMethod
     .send({
       from: account.getAddress(),
       contractAddressSalt: Fr.random(),
       universalDeploy: true,
       fee: { paymentMethod },
     })
-    .deployed({
+    .wait({
       timeout: 120000,
     })
 
   logger.info("Gateway deployed, registering...")
-  await wallet.registerContract({
-    instance: gateway.instance,
-    artifact: AztecGateway7683Contract.artifact,
-  })
+  await wallet.registerContract(gatewayInstance, AztecGateway7683Contract.artifact)
 
   logger.info(`gateway deployed: ${gateway.address.toString()}`)
 }

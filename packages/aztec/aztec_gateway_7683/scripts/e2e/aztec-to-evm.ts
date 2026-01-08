@@ -51,25 +51,22 @@ async function main(): Promise<void> {
     deploy: false,
   })
 
-  await wallet.registerContract({
-    instance: (await node.getContract(AztecAddress.fromString(aztecGateway7683Address))) as ContractInstanceWithAddress,
-    artifact: AztecGateway7683ContractArtifact,
-  })
-  await wallet.registerContract({
-    instance: (await node.getContract(AztecAddress.fromString(aztecTokenAddress))) as ContractInstanceWithAddress,
-    artifact: TokenContractArtifact,
-  })
-  await wallet.registerContract({
-    instance: await getSponsoredFPCInstance(),
-    artifact: SponsoredFPCContractArtifact,
-  })
-  const gateway = await Contract.at(
+  await wallet.registerContract(
+    (await node.getContract(AztecAddress.fromString(aztecGateway7683Address))) as ContractInstanceWithAddress,
+    AztecGateway7683ContractArtifact,
+  )
+  await wallet.registerContract(
+    (await node.getContract(AztecAddress.fromString(aztecTokenAddress))) as ContractInstanceWithAddress,
+    TokenContractArtifact,
+  )
+  await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
+  const gateway = Contract.at(
     AztecAddress.fromString(aztecGateway7683Address),
     AztecGateway7683ContractArtifact,
     wallet,
   )
 
-  const token = await Contract.at(AztecAddress.fromString(aztecTokenAddress), TokenContractArtifact, wallet)
+  const token = Contract.at(AztecAddress.fromString(aztecTokenAddress), TokenContractArtifact, wallet)
 
   const fillDeadline = 2 ** 32 - 1
   const amount = 100n
