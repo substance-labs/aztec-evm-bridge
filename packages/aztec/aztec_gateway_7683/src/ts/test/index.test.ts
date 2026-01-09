@@ -62,7 +62,7 @@ interface TestWalletAndAccount {
 }
 
 const setup = async (node: AztecNode, portalAddress: EthAddress) => {
-  const sponsoredFPC = await getSponsoredFPCInstance()
+  const sponsoredFPC = await getSponsoredFPCInstance(node)
 
   // Create test wallets
   const userWallet = await TestWallet.create(node, {
