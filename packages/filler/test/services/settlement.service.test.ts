@@ -52,7 +52,7 @@ vi.mock("viem", async () => {
     bytesToHex: vi.fn().mockReturnValue("0xhex"),
   }
 })
-vi.mock("@aztec/foundation/crypto", () => ({
+vi.mock("@aztec/foundation/crypto/sha256", () => ({
   sha256ToField: vi.fn().mockReturnValue({ toString: () => "0xfield" }),
 }))
 vi.mock("@lodestar/types", () => ({
