@@ -10,6 +10,7 @@ import AztecWatcher from "../src/watchers/aztec.watcher.js"
 import logger from "../src/utils/logger.js"
 
 import { BalanceRepository } from "../src/repositories/BalanceRepository.js"
+import { ChainStateRepository } from "../src/repositories/ChainStateRepository.js"
 
 // Mock dependencies
 vi.mock("mongodb")
@@ -22,6 +23,7 @@ vi.mock("../src/watchers/evm.watcher.js")
 vi.mock("../src/watchers/aztec.watcher.js")
 vi.mock("../src/utils/logger.js")
 vi.mock("../src/repositories/BalanceRepository.js")
+vi.mock("../src/repositories/ChainStateRepository.js")
 vi.mock("viem/chains", () => ({
   sepolia: { id: 11155111, name: "Sepolia" },
   customChain: { id: 456, name: "Custom Chain" },
@@ -117,6 +119,7 @@ describe("index.ts", () => {
     vi.mocked(OrderService).mockImplementation(MockOrderService as any)
     vi.mocked(SettlementService).mockImplementation(class {} as any)
     vi.mocked(BalanceRepository).mockImplementation(class {} as any)
+    vi.mocked(ChainStateRepository).mockImplementation(class {} as any)
 
     const { main } = await import("../src/index.js")
     await main()
@@ -133,6 +136,13 @@ describe("index.ts", () => {
     expect(mockEvmWatcherStart).toHaveBeenCalled()
     expect(AztecWatcher).toHaveBeenCalled()
     expect(mockAztecWatcherStart).toHaveBeenCalled()
+    expect(ChainStateRepository).toHaveBeenCalled()
+
+    // Verify watchers receive chainStateRepository
+    expect(evmWatcherOptions.chainStateRepository).toBeDefined()
+    expect(evmWatcherOptions.chainId).toBeDefined()
+    expect(aztecWatcherOptions.chainStateRepository).toBeDefined()
+    expect(aztecWatcherOptions.chainId).toBe("aztec")
 
     // Test callbacks
     const mockLog = { some: "log" }

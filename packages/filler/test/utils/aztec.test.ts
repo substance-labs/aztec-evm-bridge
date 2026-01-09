@@ -132,7 +132,7 @@ describe("Aztec Utils", () => {
       delete process.env.AZTEC_RPC_URL
       const node = await getAztecNode()
       expect(node).toBeDefined()
-      expect(createAztecNodeClient).toHaveBeenCalledWith("https://devnet.aztec-labs.com")
+      expect(createAztecNodeClient).toHaveBeenCalledWith("https://next.devnet.aztec-labs.com")
     })
 
     it("should getSponsoredFPCInstance", async () => {
