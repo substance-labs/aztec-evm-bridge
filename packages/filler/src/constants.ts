@@ -15,7 +15,7 @@ export const ORDER_STATUS_SETTLED = "settled"
 
 export const ORDER_FILLED = 2n
 
-export const AZTEC_VERSION = 1667575857 // TODO read it from the RollupContract
+export const AZTEC_VERSION = 1647720761 // TODO read it from the RollupContract
 
 export const FORWARDER_SETTLE_ORDER_SLOT = 2n
 export const L2_GATEWAY_FILLED_ORDERS_SLOT = 51n

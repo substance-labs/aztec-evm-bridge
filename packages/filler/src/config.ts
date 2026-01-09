@@ -44,15 +44,15 @@ export const config: FillerConfig = {
       type: ChainConfigType.EVM,
       id: baseSepolia.id,
       name: baseSepolia.name,
-      rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || baseSepolia.rpcUrls.default.http[0],
+      rpcUrl: process.env.EVM_L2_RPC_URL || baseSepolia.rpcUrls.default.http[0],
       chain: baseSepolia,
-      gateway: "0x36A3f6906AA16d70e70137498321363699a582cf",
+      gateway: (process.env.L2_EVM_GATEWAY_ADDRESS || "0x36A3f6906AA16d70e70137498321363699a582cf") as `0x${string}`,
       tokens: [
         {
-          name: "Wrapped Ethereum",
-          symbol: "WETH",
+          name: "Test Token",
+          symbol: "TST",
           decimals: 18,
-          address: "0xAf31a5CFf95131B2E0D3fa89125342984567f399",
+          address: process.env.L2_EVM_TOKEN_ADDRESS || "0xAf31a5CFf95131B2E0D3fa89125342984567f399",
         },
       ],
     },
@@ -60,14 +60,16 @@ export const config: FillerConfig = {
       type: ChainConfigType.AZTEC,
       id: "999999",
       name: "Aztec",
-      rpcUrl: process.env.AZTEC_RPC_URL || "https://devnet.aztec-labs.com",
-      gateway: "0x0011ca3cce73b704bba628c8ff420a9139500e9568284a74bc205dd3c28421b3",
+      rpcUrl: process.env.AZTEC_RPC_URL || "https://next.devnet.aztec-labs.com",
+      gateway: (process.env.AZTEC_GATEWAY_ADDRESS ||
+        "0x0011ca3cce73b704bba628c8ff420a9139500e9568284a74bc205dd3c28421b3") as `0x${string}`,
       tokens: [
         {
           name: "Test Token",
           symbol: "TST",
           decimals: 18,
-          address: "0x22fe09c938746e25c2f3a9e2737209bf37bec5f825c8b7a06c367daab1c1b2c6",
+          address:
+            process.env.AZTEC_TOKEN_ADDRESS || "0x22fe09c938746e25c2f3a9e2737209bf37bec5f825c8b7a06c367daab1c1b2c6",
         },
       ],
     },

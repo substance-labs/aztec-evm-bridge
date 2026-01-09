@@ -254,26 +254,38 @@ class SettlementService extends BaseService {
       const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
       let provenBlockNumber: bigint
       try {
+        // Try getProvenBlockNumber first
         provenBlockNumber = (await l1Client.publicClient.readContract({
           address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
           args: [],
           abi: rollupAbi,
           functionName: "getProvenBlockNumber",
         })) as bigint
-      } catch (error) {
-        if (IS_SANDBOX_ENV) {
-          this.logger.warn(
-            `skipping forwardSettleToL2 for order ${order.orderId} because getProvenBlockNumber is unavailable: ${String(
-              (error as Error).message ?? error,
-            )}`,
-          )
-          return
-        }
+      } catch (provenError) {
+        // Fallback to getTips, which returns [pending, proven]
+        try {
+          const tips = (await l1Client.publicClient.readContract({
+            address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
+            args: [],
+            abi: rollupAbi,
+            functionName: "getTips",
+          })) as [bigint, bigint]
+          provenBlockNumber = tips[1]
+        } catch (error) {
+          if (IS_SANDBOX_ENV) {
+            this.logger.warn(
+              `skipping forwardSettleToL2 for order ${order.orderId} because proven block number is unavailable: ${String(
+                (error as Error).message ?? error,
+              )}`,
+            )
+            return
+          }
 
-        provenBlockNumber = orderSettlementBlockNumber
-        this.logger.error(
-          `Failed to get proven block number for order ${order.orderId}: ${String((error as Error).message ?? error)}`,
-        )
+          provenBlockNumber = orderSettlementBlockNumber
+          this.logger.error(
+            `Failed to get proven block number for order ${order.orderId}: ${String((error as Error).message ?? error)}`,
+          )
+        }
       }
 
       if (orderSettlementBlockNumber > provenBlockNumber) {

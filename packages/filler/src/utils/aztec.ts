@@ -13,7 +13,7 @@ export const getPaymentMethod = async (): Promise<SponsoredFeePaymentMethod> =>
   new SponsoredFeePaymentMethod(await getSponsoredFPCAddress())
 
 export const getAztecNode = (): AztecNode => {
-  return createAztecNodeClient(process.env.AZTEC_RPC_URL || "https://devnet.aztec-labs.com")
+  return createAztecNodeClient(process.env.AZTEC_RPC_URL || "https://next.devnet.aztec-labs.com")
 }
 
 export const parseOpenLog = (log1: Fr[], log2: Fr[]) => {

@@ -8,6 +8,7 @@ import OrderService from "./services/order.service.js"
 import SettlementService from "./services/settlement.service.js"
 import { Monitor } from "./services/monitor.service.js"
 import { BalanceRepository } from "./repositories/BalanceRepository.js"
+import { ChainStateRepository } from "./repositories/ChainStateRepository.js"
 import { config, type AztecChainConfig } from "./config.js"
 import logger from "./utils/logger.js"
 import MultiClient from "./MultiClient.js"
@@ -95,6 +96,7 @@ const main = async () => {
   })
 
   const balanceRepository = new BalanceRepository(db)
+  const chainStateRepository = new ChainStateRepository(db)
   const monitor = new Monitor(evmMultiClient, monitorWallet, balanceRepository, config, logger)
   monitor.start()
 
@@ -106,6 +108,8 @@ const main = async () => {
     abi: l2Gateway7683Abi,
     eventName: "Open",
     watchIntervalTimeMs: EVM_WATCH_INTERVAL_TIME_MS,
+    chainStateRepository,
+    chainId: `evm-${l2EvmChain.id}`,
     onLogs: async (logs: Log[]) => {
       for (const log of logs) {
         console.log("Filling order from L2 EVM log:", log)
@@ -121,6 +125,8 @@ const main = async () => {
     contractAddress: AZTEC_GATEWAY_ADDRESS,
     eventName: "Open",
     watchIntervalTimeMs: AZTEC_WATCH_INTERVAL_TIME_MS,
+    chainStateRepository,
+    chainId: "aztec",
     onLogs: async (logs) => {
       for (const log of logs) {
         await orderService.fillOrderFromAztecLog(log, "Base Sepolia")

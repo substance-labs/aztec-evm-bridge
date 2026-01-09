@@ -4,6 +4,7 @@ import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { parseOpenLog, parseResolvedCrossChainOrder } from "../utils/aztec.js"
 import type { ResolvedOrder } from "../types.js"
 import type { EmbeddedWallet } from "../wallet/EmbeddedWallet.js"
+import type { ChainStateRepository } from "../repositories/ChainStateRepository.js"
 
 interface WatcherConfigs {
   service: string
@@ -13,6 +14,8 @@ interface WatcherConfigs {
   eventName: string
   watchIntervalTimeMs: number
   onLogs: (logs: ResolvedOrder[]) => Promise<void>
+  chainStateRepository: ChainStateRepository
+  chainId: string
 }
 
 class AztecWatcher {
@@ -23,6 +26,8 @@ class AztecWatcher {
   eventName: string
   private lastBlock: number
   private watchIntervalTimeMs: number
+  private chainStateRepository: ChainStateRepository
+  private chainId: string
 
   constructor(configs: WatcherConfigs) {
     this.logger = configs.logger.child({ service: configs.service })
@@ -31,12 +36,23 @@ class AztecWatcher {
     this.eventName = configs.eventName
     this.onLogs = configs.onLogs
     this.watchIntervalTimeMs = configs.watchIntervalTimeMs
+    this.chainStateRepository = configs.chainStateRepository
+    this.chainId = configs.chainId
 
     this.lastBlock = 0
   }
 
   async start() {
     try {
+      // Load last processed block from database
+      const savedBlock = await this.chainStateRepository.getLastProcessedBlock(this.chainId)
+      if (savedBlock !== null) {
+        this.lastBlock = Number(savedBlock)
+        this.logger.info(`Resuming from saved block ${savedBlock} for chain ${this.chainId}`)
+      } else {
+        this.logger.info(`No saved block found for chain ${this.chainId}, will start from latest`)
+      }
+
       this.watch()
       setInterval(() => {
         this.watch()
@@ -99,6 +115,9 @@ class AztecWatcher {
         this.logger.info(`Detected ${joinedLogs.length} new ${this.eventName} events on Aztec. Processing them ...`)
         await this.onLogs(joinedLogs)
       }
+
+      // Save the last processed block to database
+      await this.chainStateRepository.setLastProcessedBlock(this.chainId, BigInt(currentBlock))
     } catch (error) {
       this.logger.error(error)
     }
