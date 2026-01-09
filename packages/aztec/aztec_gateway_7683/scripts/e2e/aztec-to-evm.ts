@@ -12,7 +12,7 @@ import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/Sponsored
 
 import { getSponsoredFPCAddress, getSponsoredFPCInstance } from "../fpc.js"
 import { getNode, getTestWallet, addAccountWithSecretKey } from "../utils.js"
-import { AztecGateway7683ContractArtifact } from "../../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683ContractArtifact } from "../../target/AztecGateway7683.js"
 import { OrderData } from "../../src/ts/test/OrderData.js"
 
 const ORDER_DATA_TYPE = "0xf00c3bf60c73eb97097f1c9835537da014e0b755fe94b25d7ac8401df66716a0"
@@ -28,7 +28,7 @@ const [
   aztecTokenAddress,
   l2EvmTokenAddress,
   recipientAddress,
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 // NOTE: make sure that the filler is running

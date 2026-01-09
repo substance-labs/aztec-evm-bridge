@@ -15,7 +15,7 @@ const [
   recipientAddress,
   amountPrivate = "1000000000000000000",
   amountPublic = "1000000000000000000",
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 const main = async () => {

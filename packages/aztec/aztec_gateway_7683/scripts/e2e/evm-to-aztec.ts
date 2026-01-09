@@ -6,13 +6,14 @@ import { Fr } from "@aztec/aztec.js/fields"
 import { sleep } from "@aztec/foundation/sleep"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { createPublicClient, createWalletClient, erc20Abi, hexToBytes, http, padHex } from "viem"
-import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon"
+import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/poseidon"
+import { GeneratorIndex } from "@aztec/constants"
 import { privateKeyToAccount } from "viem/accounts"
 import * as chains from "viem/chains"
 
 import { getSponsoredFPCAddress, getSponsoredFPCInstance } from "../fpc.js"
 import { getNode, getTestWallet, addAccountWithSecretKey } from "../utils.js"
-import { AztecGateway7683ContractArtifact } from "../../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683ContractArtifact } from "../../target/AztecGateway7683.js"
 import { OrderData } from "../../src/ts/test/OrderData.js"
 import { parseFilledLog } from "../../src/ts/test/utils.js"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
@@ -32,7 +33,7 @@ const [
   aztecTokenAddress,
   l2EvmTokenAddress,
   recipientAddress,
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 // NOTE: make sure that the filler is running
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
 
   const fillDeadline = 2 ** 32 - 1
   const secret = Fr.random()
-  const secretHash = await poseidon2Hash([secret])
+  const secretHash = await poseidon2HashWithSeparator([secret], GeneratorIndex.SECRET_HASH)
   const nonce = Fr.random()
   const orderData = new OrderData({
     sender: padHex(evmWalletClient.account.address as `0x${string}`),
@@ -175,7 +176,15 @@ async function main(): Promise<void> {
             contractAddress: AztecAddress.fromString(aztecGateway7683Address),
           })
 
-          const parsedLogs = logs.map(({ log }) => parseFilledLog(log.fields))
+          logger.info(`Found ${logs.length} logs`)
+
+          const parsedLogs = logs
+            .filter(({ log }) => log.fields && log.fields.length >= 13)
+            .map(({ log }) => {
+              // Convert string fields to a format parseFilledLog expects
+              const fields = log.fields.map((f: unknown) => (typeof f === "string" ? { toString: () => f } : f))
+              return parseFilledLog(fields as Fr[])
+            })
           log = parsedLogs.find((log) => log.orderId === orderId.toString())
           if (!log) throw new Error("log not found")
           break

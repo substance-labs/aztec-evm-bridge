@@ -7,10 +7,11 @@ import { hexToBytes, padHex } from "viem"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey, getNode } from "./utils.js"
-import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { OrderData } from "../src/ts/test/OrderData.js"
 import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
-import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon"
+import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/poseidon"
+import { GeneratorIndex } from "@aztec/constants"
 import { ContractInstanceWithAddress } from "@aztec/aztec.js/contracts"
 
 const [
@@ -23,7 +24,7 @@ const [
   l2EvmTokenAddress,
   l2Gateway7683Domain,
   fillerAddress,
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 async function main(): Promise<void> {
@@ -60,7 +61,7 @@ async function main(): Promise<void> {
   const amountOut = 100n
   const nonce = Fr.random()
   const secret = Fr.random()
-  const secretHash = await poseidon2Hash([secret])
+  const secretHash = await poseidon2HashWithSeparator([secret], GeneratorIndex.SECRET_HASH)
 
   const orderData = new OrderData({
     sender: "0x0000000000000000000000000000000000000000000000000000000000000000",

@@ -1,4 +1,4 @@
-import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { createLogger } from "@aztec/foundation/log"
 import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
@@ -17,7 +17,7 @@ const [
   l2Gateway7683Address,
   l2Gateway7683Domain,
   forwarderAddress,
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
   deployWallet = "false",
   deployToken = "false",
   tokenName = "Test Token",

@@ -7,7 +7,7 @@ import { hexToBytes, padHex } from "viem"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey, getNode } from "./utils.js"
-import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { OrderData } from "../src/ts/test/OrderData.js"
 import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { ContractInstanceWithAddress } from "@aztec/aztec.js/contracts"

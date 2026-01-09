@@ -5,8 +5,16 @@ import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
-const [, , aztecSecretKey, aztecSalt, tokenName, tokenSymbol, tokenDecimals, rpcUrl = "https://devnet.aztec-labs.com"] =
-  process.argv
+const [
+  ,
+  ,
+  aztecSecretKey,
+  aztecSalt,
+  tokenName,
+  tokenSymbol,
+  tokenDecimals,
+  rpcUrl = "https://next.devnet.aztec-labs.com",
+] = process.argv
 
 const main = async () => {
   const logger = createLogger("deploy-token")
