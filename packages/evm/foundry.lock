@@ -1,0 +1,23 @@
+{
+  "lib/aztec-packages": {
+    "rev": "a99e6090d1b78ae955193eccb440df2792dee8a5"
+  },
+  "lib/forge-std": {
+    "rev": "c7be2a3481f9e51230880bb0949072c7e3a4da82"
+  },
+  "lib/hyperlane-monorepo": {
+    "rev": "e1990e3d159b84700470fe1bf1ce033d85dbbc5d"
+  },
+  "lib/lib-keccak": {
+    "rev": "b1c60dc34b927e69be7e2281cc07dc065409e1fe"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "99eda2225c0246c265c902475c47ec0c6321f119"
+  },
+  "lib/optimism": {
+    "rev": "453240efea1e21d62569e0118f55bc66d3fa2acf"
+  },
+  "lib/permit2": {
+    "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+  }
+}
