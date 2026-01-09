@@ -8,7 +8,7 @@
   "scripts": {
     "clean": "rm -rf ./src/artifacts ./target",
     "build": "yarn compile && yarn codegen",
-    "codegen": "aztec codegen target --outdir src/artifacts --force",
+    "codegen": "aztec codegen target --outdir target --force",
     "compile": "aztec compile",
     "deploy": "node --loader ts-node/esm scripts/deploy.ts",
     "format": "prettier --write \"src/ts/**/*.ts\" \"scripts/**/*.ts\"",

@@ -21,7 +21,7 @@ import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-sta
 import { TestWallet } from "@aztec/test-wallet/server"
 
 import { parseFilledLog, parseOpenLog, parseResolvedCrossChainOrder, parseSettledLog } from "./utils.js"
-import { AztecGateway7683Contract, AztecGateway7683ContractArtifact } from "../../artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract, AztecGateway7683ContractArtifact } from "../../../target/AztecGateway7683.js"
 import { addRandomAccount } from "../../../scripts/utils.js"
 import { getSponsoredFPCInstance } from "../../../scripts/fpc.js"
 import { OrderData } from "./OrderData.js"
