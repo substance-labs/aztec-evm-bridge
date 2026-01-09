@@ -1,4 +1,4 @@
-import { sha256ToField } from "@aztec/foundation/crypto"
+import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
@@ -36,6 +36,7 @@ import type { BaseServiceOpts } from "./base.service.js"
 import type { Order } from "../types.js"
 import type MultiClient from "../MultiClient.js"
 import type { EmbeddedWallet } from "../wallet/EmbeddedWallet.js"
+import { BlockNumber } from "@aztec/foundation/branded-types"
 
 const { BeaconBlock } = ssz.fulu
 
@@ -286,7 +287,7 @@ class SettlementService extends BaseService {
 
       witness = await computeL2ToL1MembershipWitness(
         this.aztecWallet.getAztecNode(),
-        parseInt(orderSettlementBlockNumber.toString()),
+        BlockNumber.fromBigInt(orderSettlementBlockNumber),
         l2ToL1Message,
       )
 

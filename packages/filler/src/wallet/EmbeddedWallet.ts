@@ -1,4 +1,4 @@
-import { BaseWallet } from "@aztec/aztec.js/wallet"
+import { BaseWallet } from "@aztec/wallet-sdk/base-wallet"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import type { Account } from "@aztec/aztec.js/account"
 import { AccountManager, type Aliased } from "@aztec/aztec.js/wallet"
@@ -75,10 +75,7 @@ export class EmbeddedWallet extends BaseWallet {
     const pxe = await initPxe(storeName, aztecNode)
     const wallet = new EmbeddedWallet(pxe, aztecNode, config)
     if (useSponsoredFPC) {
-      await wallet.registerContract({
-        instance: await getSponsoredFPCInstance(),
-        artifact: SponsoredFPCContractArtifact,
-      })
+      await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
     }
 
     // Add filler account
@@ -141,7 +138,7 @@ export class EmbeddedWallet extends BaseWallet {
    */
   public setPublicAuthWit(
     from: AztecAddress,
-    messageHashOrIntent: Fr | Buffer | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
+    messageHashOrIntent: Fr | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
     authorized: boolean,
   ): Promise<SetPublicAuthwitContractInteraction> {
     return SetPublicAuthwitContractInteraction.create(this, from, messageHashOrIntent, authorized)
@@ -156,7 +153,7 @@ export class EmbeddedWallet extends BaseWallet {
    */
   public override async createAuthWit(
     from: AztecAddress,
-    messageHashOrIntent: Fr | Buffer | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
+    messageHashOrIntent: Fr | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
   ): Promise<AuthWitness> {
     const account = await this.getAccountFromAddress(from)
     const chainInfo = await this.getChainInfo()
