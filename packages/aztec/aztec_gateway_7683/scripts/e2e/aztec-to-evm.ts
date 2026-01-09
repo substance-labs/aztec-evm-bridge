@@ -59,7 +59,7 @@ async function main(): Promise<void> {
     (await node.getContract(AztecAddress.fromString(aztecTokenAddress))) as ContractInstanceWithAddress,
     TokenContractArtifact,
   )
-  await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
+  await wallet.registerContract(await getSponsoredFPCInstance(node), SponsoredFPCContractArtifact)
   const gateway = Contract.at(
     AztecAddress.fromString(aztecGateway7683Address),
     AztecGateway7683ContractArtifact,
