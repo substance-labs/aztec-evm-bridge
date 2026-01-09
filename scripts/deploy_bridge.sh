@@ -110,7 +110,7 @@ NODE_NO_WARNINGS=1 node --loader ts-node/esm scripts/deploy.ts \
     $L2_CHAIN_ID \
     $FORWARDER_ADDRESS \
     $AZTEC_RPC_URL \
-    false \
+    ${DEPLOY_AZTEC_WALLET:-true} \
     false
 
 AZTEC_GATEWAY_ADDRESS=$(jq -r '.AztecGateway7683' deployments/deployment.json)

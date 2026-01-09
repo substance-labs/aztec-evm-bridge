@@ -60,6 +60,3 @@ fi
 if [ ! -z "$AZTEC_TOKEN_ADDRESS" ]; then
     echo "AZTEC_TOKEN_ADDRESS=$AZTEC_TOKEN_ADDRESS"
 fi
-echo "RECIPIENT_ADDRESS=0x0000000000000000000000000000000000000001"
-echo ""
-echo "Then run the test_bridge script again."
