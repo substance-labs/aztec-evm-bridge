@@ -1,5 +1,5 @@
 import { bytesToHex, encodePacked, hexToBytes } from "viem"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon"
 import { Fr } from "@aztec/aztec.js/fields"
 
 import type { Hex } from "viem"

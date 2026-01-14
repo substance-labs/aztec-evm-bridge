@@ -50,6 +50,14 @@ export default defineConfig({
   envPrefix: envPrefixes,
   define: {
     global: "globalThis",
+    "import.meta.env.EVM_PK": JSON.stringify(process.env.EVM_PK),
+    "import.meta.env.AZTEC_SECRET_KEY": JSON.stringify(process.env.AZTEC_SECRET_KEY),
+    "import.meta.env.AZTEC_KEY_SALT": JSON.stringify(process.env.AZTEC_KEY_SALT),
+    "import.meta.env.BROWSER_E2E": JSON.stringify(process.env.BROWSER_E2E),
+    "process.env.EVM_PK": JSON.stringify(process.env.EVM_PK),
+    "process.env.AZTEC_SECRET_KEY": JSON.stringify(process.env.AZTEC_SECRET_KEY),
+    "process.env.AZTEC_KEY_SALT": JSON.stringify(process.env.AZTEC_KEY_SALT),
+    "process.env.BROWSER_E2E": JSON.stringify(process.env.BROWSER_E2E),
   },
   worker: {
     format: "es",

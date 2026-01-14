@@ -1,6 +1,6 @@
 import { Fr } from "@aztec/aztec.js/fields"
 import { padHex, Hex } from "viem"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { computeSecretHash } from "@aztec/stdlib/hash"
 import { OrderDataEncoder } from "../utils"
 import {
   PRIVATE_ORDER,
@@ -103,7 +103,7 @@ export async function createEvmToAztecOrderData(
   const orderType = isPrivate ? PRIVATE_ORDER : PUBLIC_ORDER
   const baseData = createBaseOrderData(order, nonce, gatewayOut, orderType)
 
-  const recipient = secret ? (await poseidon2Hash([secret])).toString() : padHex(order.recipient)
+  const recipient = secret ? (await computeSecretHash(secret)).toString() : padHex(order.recipient)
 
   const orderData: OrderData = {
     ...baseData,

@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./test/setup.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**", "test/**/browser/**"],
     bail: 1,
     coverage: {
       reporter: ["text", "json", "html"],

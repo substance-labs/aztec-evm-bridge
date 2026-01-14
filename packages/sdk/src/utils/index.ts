@@ -7,7 +7,7 @@ import {
   type ContractFunctionInteractionCallIntent,
   type IntentInnerHash,
 } from "@aztec/aztec.js/authorization"
-import { Fr } from "@aztec/foundation/fields"
+import { Fr } from "@aztec/aztec.js/fields"
 
 export * from "./beacon"
 export * from "./fpc"
@@ -26,7 +26,7 @@ export const hexToUintArray = (str: `0x${string}`) => Array.from(hexToBytes(str)
 export async function setPublicAuthWit(
   wallet: Wallet,
   from: AztecAddress,
-  messageHashOrIntent: Fr | Buffer | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
+  messageHashOrIntent: Fr | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
   authorized: boolean,
 ): Promise<SetPublicAuthwitContractInteraction> {
   return SetPublicAuthwitContractInteraction.create(wallet, from, messageHashOrIntent, authorized)
