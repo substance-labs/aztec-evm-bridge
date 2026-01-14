@@ -46,13 +46,13 @@ export const config: FillerConfig = {
       name: baseSepolia.name,
       rpcUrl: process.env.EVM_L2_RPC_URL || baseSepolia.rpcUrls.default.http[0],
       chain: baseSepolia,
-      gateway: (process.env.L2_EVM_GATEWAY_ADDRESS || "0x36A3f6906AA16d70e70137498321363699a582cf") as `0x${string}`,
+      gateway: (process.env.L2_EVM_GATEWAY_ADDRESS || "0xd2Fc7cBb86b4f5976D8b0c42Aa9cBEf0bcf16005") as `0x${string}`,
       tokens: [
         {
           name: "Test Token",
           symbol: "TST",
           decimals: 18,
-          address: process.env.L2_EVM_TOKEN_ADDRESS || "0xAf31a5CFf95131B2E0D3fa89125342984567f399",
+          address: process.env.L2_EVM_TOKEN_ADDRESS || "0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055",
         },
       ],
     },
@@ -62,14 +62,14 @@ export const config: FillerConfig = {
       name: "Aztec",
       rpcUrl: process.env.AZTEC_RPC_URL || "https://next.devnet.aztec-labs.com",
       gateway: (process.env.AZTEC_GATEWAY_ADDRESS ||
-        "0x0011ca3cce73b704bba628c8ff420a9139500e9568284a74bc205dd3c28421b3") as `0x${string}`,
+        "0x0e4076b4b8a7bd025450499799f2ab42fc48c05a9407f00495aa8948ad80b4da") as `0x${string}`,
       tokens: [
         {
           name: "Test Token",
           symbol: "TST",
           decimals: 18,
           address:
-            process.env.AZTEC_TOKEN_ADDRESS || "0x22fe09c938746e25c2f3a9e2737209bf37bec5f825c8b7a06c367daab1c1b2c6",
+            process.env.AZTEC_TOKEN_ADDRESS || "0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1",
         },
       ],
     },
