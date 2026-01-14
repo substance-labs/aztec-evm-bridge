@@ -20,13 +20,14 @@
     "sdk"
   ],
   "types": "dist/index.d.ts",
-  "module": "dist/index.mjs",
-  "main": "dist/index.mjs",
+  "module": "dist/index.js",
+  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "default": "./dist/index.mjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -42,23 +43,21 @@
     "format": "prettier --write \"**/*.{json,ts}\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "npm run test:node && npm run test:browser",
-    "test:unit": "npm run test:node:unit && npm run test:browser:unit",
-    "test:e2e": "npm run test:node:e2e && npm run test:browser:e2e",
-    "test:node": "vitest run",
-    "test:node:unit": "vitest run test/unit/operations test/unit/Bridge.azguard-mock.test.ts",
-    "test:node:e2e": "vitest run test/e2e/Bridge.test.ts test/e2e/Bridge.azguard.test.ts",
+    "test": "yarn test:node && yarn test:browser",
+    "test:unit": "vitest run test/Bridge.unit.test.ts && vitest run --config vitest.browser.config.ts test/Bridge.unit.browser.test.ts",
+    "test:e2e": "vitest run test/Bridge.e2e.test.ts && vitest run --config vitest.browser.config.ts test/Bridge.e2e.browser.test.ts",
+    "test:node": "yarn test:node:unit && yarn test:node:e2e",
+    "test:node:unit": "vitest run test/Bridge.unit.test.ts",
+    "test:node:e2e": "vitest run test/Bridge.e2e.test.ts",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:browser:unit": "vitest run --config vitest.browser.config.ts test/unit/browser/bridge-init.browser.test.ts test/unit/browser/order-data.browser.test.ts",
-    "test:browser:e2e": "vitest run --config vitest.browser.config.ts test/e2e/browser/base-to-aztec-e2e.browser.test.ts",
+    "test:browser:e2e": "vitest run --config vitest.browser.config.ts test/Bridge.e2e.browser.test.ts",
     "test:browser:watch": "vitest --config vitest.browser.config.ts",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "vitest run test/Bridge.e2e.test.ts && vitest run --config vitest.browser.config.ts test/Bridge.e2e.browser.test.ts",
-    "test:unit": "vitest run test/Bridge.unit.test.ts && vitest run --config vitest.browser.config.ts test/Bridge.unit.browser.test.ts",
+    "test:coverage": "vitest run --coverage && vitest run --config vitest.browser.config.ts --coverage",
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@azguardwallet/client": "^0.6.0",
+    "@azguardwallet/client": "0.7.0",
     "@aztec/accounts": "3.0.0-devnet.20251212",
     "@aztec/aztec.js": "3.0.0-devnet.20251212",
     "@aztec/foundation": "3.0.0-devnet.20251212",
@@ -70,7 +69,7 @@
     "viem": "^2.33.2"
   },
   "devDependencies": {
-    "@azguardwallet/types": "^0.6.0",
+    "@azguardwallet/types": "0.7.0",
     "@types/node": "^24.2.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
