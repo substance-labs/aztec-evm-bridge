@@ -1,32 +1,40 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Hex, padHex } from "viem"
-import { baseSepolia } from "viem/chains"
 import { AzguardClient } from "@azguardwallet/client"
 import type { Wallet } from "@aztec/aztec.js/wallet"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
-import { Fr } from "@aztec/aztec.js/fields"
 
 import {
   Bridge,
-  aztecSepolia,
+  chainsConfig,
   OrderDataEncoder,
   getAztecAddressFromAzguardAccount,
   hexToUintArray,
   BridgeHelpers,
 } from "../src"
-import {
-  PRIVATE_ORDER,
-  PRIVATE_ORDER_WITH_HOOK,
-  PUBLIC_ORDER,
-  PUBLIC_ORDER_WITH_HOOK,
-  gatewayAddresses,
-} from "../src/constants"
+import { PRIVATE_ORDER, PRIVATE_ORDER_WITH_HOOK, PUBLIC_ORDER, PUBLIC_ORDER_WITH_HOOK } from "../src/constants"
 
 // Mock external dependencies
+// Note: vi.mock is hoisted, so it is not possible to import values like Fr.random() or AztecAddress.random()
+// Instead, return simple mock values
+
+// Mock the contract artifact to avoid incompatibility with new @aztec/stdlib
+vi.mock("../src/utils/artifacts/AztecGateway7683/AztecGateway7683", () => ({
+  AztecGateway7683Contract: {
+    at: vi.fn().mockResolvedValue({
+      methods: {},
+    }),
+  },
+  AztecGateway7683ContractArtifact: {
+    name: "AztecGateway7683",
+    functions: [],
+  },
+}))
+
 vi.mock("@aztec/aztec.js/node", () => ({
   createAztecNodeClient: vi.fn().mockReturnValue({
     getContract: vi.fn().mockResolvedValue({
-      address: AztecAddress.random(),
+      address: { toString: () => "0x" + "12".repeat(32) },
     }),
     getL1ContractAddresses: vi.fn().mockResolvedValue({}),
     getPublicLogs: vi.fn().mockResolvedValue({ logs: [] }),
@@ -35,43 +43,110 @@ vi.mock("@aztec/aztec.js/node", () => ({
 }))
 
 vi.mock("@aztec/stdlib/hash", () => ({
-  computeL2ToL1MessageHash: vi.fn().mockReturnValue(Fr.random()),
+  computeL2ToL1MessageHash: vi.fn().mockReturnValue({ toString: () => "0x" + "ab".repeat(32) }),
 }))
 
-// Mock only specific viem functions that need mocking, not the whole module
-vi.mock("viem", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("viem")>()
-  return {
-    ...actual,
-    createPublicClient: vi.fn().mockReturnValue({
-      readContract: vi.fn().mockResolvedValue(100n),
-      waitForTransactionReceipt: vi.fn().mockResolvedValue({ status: "success" }),
-      getTransactionReceipt: vi.fn().mockResolvedValue({
-        blockNumber: 100n,
-        logs: [],
-      }),
-      getBlock: vi.fn().mockResolvedValue({
-        parentBeaconBlockRoot: "0x1234",
-        timestamp: 1234567890n,
-      }),
-      request: vi.fn().mockResolvedValue({
-        accountProof: ["0x1234"],
-        storageProof: [{ key: "0x1234", value: "0x1", proof: ["0x1234"] }],
-      }),
-      getLogs: vi.fn().mockResolvedValue([]),
-      getBlockNumber: vi.fn().mockResolvedValue(1000n),
-      getProof: vi.fn().mockResolvedValue({
-        accountProof: ["0x1234"],
-        storageProof: [{ key: "0x1234", value: 1n, proof: ["0x1234"] }],
-      }),
+// Mock viem - avoid using importOriginal due to module initialization order issues with @aztec/stdlib
+vi.mock("viem", () => ({
+  // Re-export commonly used utilities
+  padHex: (value: string, opts?: { size?: number }) => {
+    const size = opts?.size ?? 32
+    const hex = value.startsWith("0x") ? value.slice(2) : value
+    return `0x${hex.padStart(size * 2, "0")}` as `0x${string}`
+  },
+  isHex: (value: unknown): value is `0x${string}` => typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value),
+  hexToBytes: (hex: string) => {
+    const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex
+    const bytes = new Uint8Array(cleanHex.length / 2)
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(cleanHex.substr(i * 2, 2), 16)
+    }
+    return bytes
+  },
+  bytesToHex: (bytes: Uint8Array) => {
+    return `0x${Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")}` as `0x${string}`
+  },
+  toHex: (value: number | bigint) => `0x${value.toString(16)}` as `0x${string}`,
+  fromHex: (hex: string, to: string) => {
+    const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex
+    if (to === "bigint") return BigInt(`0x${cleanHex}`)
+    if (to === "number") return parseInt(cleanHex, 16)
+    return cleanHex
+  },
+  keccak256: vi.fn().mockReturnValue("0x" + "ab".repeat(32)),
+  encodeAbiParameters: vi.fn().mockReturnValue("0x" + "00".repeat(32)),
+  decodeAbiParameters: vi.fn().mockReturnValue([]),
+  encodePacked: (types: any[], values: any[]) => {
+    // Properly encode packed data according to Solidity rules
+    let result = ""
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i]
+      const value = values[i]
+
+      if (type === "bytes32") {
+        // bytes32: pad to 32 bytes
+        const hex = typeof value === "string" && value.startsWith("0x") ? value.slice(2) : value
+        result += hex.padStart(64, "0")
+      } else if (type === "uint256") {
+        // uint256: pad to 32 bytes
+        result += (typeof value === "bigint" ? value : BigInt(value)).toString(16).padStart(64, "0")
+      } else if (type === "uint128") {
+        // uint128: pad to 16 bytes
+        result += (typeof value === "bigint" ? value : BigInt(value)).toString(16).padStart(32, "0")
+      } else if (type === "uint64") {
+        // uint64: pad to 8 bytes
+        result += (typeof value === "bigint" ? value : BigInt(value)).toString(16).padStart(16, "0")
+      } else if (type === "uint32") {
+        // uint32: pad to 4 bytes
+        result += (typeof value === "number" ? value : Number(value)).toString(16).padStart(8, "0")
+      } else if (type === "uint16") {
+        // uint16: pad to 2 bytes
+        result += (typeof value === "number" ? value : Number(value)).toString(16).padStart(4, "0")
+      } else if (type === "uint8") {
+        // uint8: pad to 1 byte
+        result += (typeof value === "number" ? value : Number(value)).toString(16).padStart(2, "0")
+      } else if (type === "address") {
+        // address: pad to 20 bytes
+        const hex = typeof value === "string" && value.startsWith("0x") ? value.slice(2) : value
+        result += hex.padStart(40, "0")
+      }
+    }
+    return ("0x" + result) as `0x${string}`
+  },
+  encodeFunctionData: vi.fn().mockReturnValue("0x"),
+  decodeFunctionResult: vi.fn().mockReturnValue([]),
+  parseAbi: vi.fn().mockReturnValue([]),
+  http: vi.fn().mockReturnValue({}),
+  createPublicClient: vi.fn().mockReturnValue({
+    readContract: vi.fn().mockResolvedValue(100n),
+    waitForTransactionReceipt: vi.fn().mockResolvedValue({ status: "success" }),
+    getTransactionReceipt: vi.fn().mockResolvedValue({
+      blockNumber: 100n,
+      logs: [],
     }),
-    createWalletClient: vi.fn().mockReturnValue({
-      writeContract: vi.fn().mockResolvedValue("0xmocktxhash"),
-      account: { address: "0x1234567890123456789012345678901234567890" },
-      getAddresses: vi.fn().mockResolvedValue(["0x1234567890123456789012345678901234567890"]),
+    getBlock: vi.fn().mockResolvedValue({
+      parentBeaconBlockRoot: "0x1234",
+      timestamp: 1234567890n,
     }),
-  }
-})
+    request: vi.fn().mockResolvedValue({
+      accountProof: ["0x1234"],
+      storageProof: [{ key: "0x1234", value: "0x1", proof: ["0x1234"] }],
+    }),
+    getLogs: vi.fn().mockResolvedValue([]),
+    getBlockNumber: vi.fn().mockResolvedValue(1000n),
+    getProof: vi.fn().mockResolvedValue({
+      accountProof: ["0x1234"],
+      storageProof: [{ key: "0x1234", value: 1n, proof: ["0x1234"] }],
+    }),
+  }),
+  createWalletClient: vi.fn().mockReturnValue({
+    writeContract: vi.fn().mockResolvedValue("0xmocktxhash"),
+    account: { address: "0x1234567890123456789012345678901234567890" },
+    getAddresses: vi.fn().mockResolvedValue(["0x1234567890123456789012345678901234567890"]),
+  }),
+}))
 
 const WETH_ON_AZTEC_SEPOLIA_ADDRESS: `0x${string}` =
   "0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81"
@@ -211,8 +286,8 @@ describe("Bridge Unit Tests", () => {
     it("should reject if chainIdIn equals chainIdOut", async () => {
       await expect(
         bridge.openOrder({
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: aztecSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
@@ -221,14 +296,14 @@ describe("Bridge Unit Tests", () => {
           data: padHex("0x"),
           recipient: MOCK_EVM_ADDRESS,
         }),
-      ).rejects.toThrow("Invalid chains: source and destination must differ")
+      ).rejects.toThrow("Invalid chains: only cross-chain orders are supported")
     })
 
     it("should reject invalid mode", async () => {
       await expect(
         bridge.openOrder({
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
@@ -243,8 +318,8 @@ describe("Bridge Unit Tests", () => {
     it("should reject invalid data length", async () => {
       await expect(
         bridge.openOrder({
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
@@ -259,7 +334,7 @@ describe("Bridge Unit Tests", () => {
     it("should reject if neither chain is Aztec", async () => {
       await expect(
         bridge.openOrder({
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
           amountIn: 1n,
           amountOut: 1n,
@@ -279,8 +354,8 @@ describe("Bridge Unit Tests", () => {
         // Just testing validation passes - actual execution will fail due to mocks
         try {
           await bridge.openOrder({
-            chainIdIn: aztecSepolia.id,
-            chainIdOut: baseSepolia.id,
+            chainIdIn: chainsConfig.aztecDevnet.chain.id,
+            chainIdOut: chainsConfig.baseSepolia.chain.id,
             amountIn: 1n,
             amountOut: 1n,
             tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
@@ -322,8 +397,8 @@ describe("Bridge Unit Tests", () => {
             amountIn: 1n,
             amountOut: 1n,
             senderNonce: 1n,
-            originDomain: aztecSepolia.id,
-            destinationDomain: baseSepolia.id,
+            originDomain: chainsConfig.aztecDevnet.chain.id,
+            destinationDomain: chainsConfig.baseSepolia.chain.id,
             destinationSettler: padHex("0x", { size: 32 }),
             fillDeadline: expiredDeadline,
             data: padHex("0x"),
@@ -347,7 +422,7 @@ describe("Bridge Unit Tests", () => {
             amountIn: 1n,
             amountOut: 1n,
             senderNonce: 1n,
-            originDomain: baseSepolia.id,
+            originDomain: chainsConfig.baseSepolia.chain.id,
             destinationDomain: 1, // Mainnet, not Aztec
             destinationSettler: padHex("0x", { size: 32 }),
             fillDeadline: futureDeadline,
@@ -372,8 +447,8 @@ describe("Bridge Unit Tests", () => {
             amountIn: 1n,
             amountOut: 1n,
             senderNonce: 1n,
-            originDomain: aztecSepolia.id,
-            destinationDomain: baseSepolia.id,
+            originDomain: chainsConfig.aztecDevnet.chain.id,
+            destinationDomain: chainsConfig.baseSepolia.chain.id,
             destinationSettler: padHex("0x", { size: 32 }),
             fillDeadline: exactDeadline,
             data: padHex("0x"),
@@ -397,7 +472,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.refundOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
         }),
       ).rejects.toThrow("Neither chain is Aztec")
@@ -418,7 +493,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.forwardSettleOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
         }),
       ).rejects.toThrow("Neither chain is Aztec")
@@ -429,8 +504,8 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.forwardSettleOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
-          chainIdOut: aztecSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
+          chainIdOut: chainsConfig.aztecDevnet.chain.id,
         }),
       ).rejects.toThrow() // Will fail but tests path selection
     })
@@ -439,8 +514,8 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.forwardSettleOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
         }),
       ).rejects.toThrow() // Will fail but tests path selection
     })
@@ -460,7 +535,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.forwardRefundOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
         }),
       ).rejects.toThrow("Neither chain is Aztec")
@@ -481,7 +556,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.finalizeForwardSettleOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
         }),
       ).rejects.toThrow("Neither chain is Aztec")
@@ -491,8 +566,8 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.finalizeForwardSettleOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
         }),
       ).rejects.toThrow("Not implemented")
     })
@@ -512,7 +587,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.finalizeForwardRefundOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: 1, // Mainnet, not Aztec
         }),
       ).rejects.toThrow("Neither chain is Aztec")
@@ -522,8 +597,8 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.finalizeForwardRefundOrder({
           orderId: padHex("0x1234") as Hex,
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
+          chainIdIn: chainsConfig.aztecDevnet.chain.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
         }),
       ).rejects.toThrow("Not implemented")
     })
@@ -540,8 +615,8 @@ describe("Bridge Unit Tests", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -583,8 +658,8 @@ describe("Bridge Unit Tests", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -610,8 +685,8 @@ describe("Bridge Unit Tests", () => {
         amountIn: 2n ** 128n - 1n, // Large amount
         amountOut: 2n ** 128n - 1n,
         senderNonce: 2n ** 64n - 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: 2 ** 32 - 1, // Max uint32
         data: padHex("0x"),
@@ -636,8 +711,8 @@ describe("Bridge Unit Tests", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -699,7 +774,7 @@ describe("Bridge Unit Tests", () => {
       await expect(
         bridge.openOrder({
           chainIdIn: 999999, // Non-existent chain
-          chainIdOut: aztecSepolia.id,
+          chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
           tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
@@ -773,26 +848,26 @@ describe("Bridge Unit Tests", () => {
 
   describe("aztecSepolia chain", () => {
     it("should have correct chain id", () => {
-      expect(aztecSepolia.id).toBeDefined()
-      expect(typeof aztecSepolia.id).toBe("number")
+      expect(chainsConfig.aztecDevnet.chain.id).toBeDefined()
+      expect(typeof chainsConfig.aztecDevnet.chain.id).toBe("number")
     })
 
     it("should have rpcUrls", () => {
-      expect(aztecSepolia.rpcUrls).toBeDefined()
-      expect(aztecSepolia.rpcUrls.default).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls.default).toBeDefined()
     })
   })
 
   describe("BridgeHelpers", () => {
     describe("getChainByChainId", () => {
       it("should return aztecSepolia for aztec chain id", () => {
-        const chain = BridgeHelpers.getChainByChainId(aztecSepolia.id)
-        expect(chain.id).toBe(aztecSepolia.id)
+        const chain = BridgeHelpers.getChainByChainId(chainsConfig.aztecDevnet.chain.id)
+        expect(chain.chain.id).toBe(chainsConfig.aztecDevnet.chain.id)
       })
 
       it("should return EVM chain for valid chain id", () => {
-        const chain = BridgeHelpers.getChainByChainId(baseSepolia.id)
-        expect(chain.id).toBe(baseSepolia.id)
+        const chain = BridgeHelpers.getChainByChainId(chainsConfig.baseSepolia.chain.id)
+        expect(chain.chain.id).toBe(chainsConfig.baseSepolia.chain.id)
       })
 
       it("should return undefined behavior for unknown chain id", () => {
@@ -804,9 +879,12 @@ describe("Bridge Unit Tests", () => {
 
     describe("getChainInAndOutByChainIds", () => {
       it("should return both chains", () => {
-        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(aztecSepolia.id, baseSepolia.id)
-        expect(chainIn.id).toBe(aztecSepolia.id)
-        expect(chainOut.id).toBe(baseSepolia.id)
+        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(
+          chainsConfig.aztecDevnet.chain.id,
+          chainsConfig.baseSepolia.chain.id,
+        )
+        expect(chainIn.chain.id).toBe(chainsConfig.aztecDevnet.chain.id)
+        expect(chainOut.chain.id).toBe(chainsConfig.baseSepolia.chain.id)
       })
     })
 
@@ -834,29 +912,31 @@ describe("Bridge Unit Tests", () => {
 
     describe("getGatewaysByChainIds", () => {
       it("should return gateways for valid chain ids", () => {
-        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(aztecSepolia.id, baseSepolia.id)
+        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(
+          chainsConfig.aztecDevnet.chain.id,
+          chainsConfig.baseSepolia.chain.id,
+        )
         expect(gatewayIn).toBeDefined()
         expect(gatewayOut).toBeDefined()
       })
 
       it("should throw for invalid source chain", () => {
-        // Use a truly invalid chain ID (not aztecSepolia which is 999999 or baseSepolia which is 84532)
-        expect(() => BridgeHelpers.getGatewaysByChainIds(123456789, baseSepolia.id)).toThrow()
+        expect(() => BridgeHelpers.getGatewaysByChainIds(123456789, chainsConfig.baseSepolia.chain.id)).toThrow()
       })
 
       it("should throw for invalid destination chain", () => {
-        expect(() => BridgeHelpers.getGatewaysByChainIds(aztecSepolia.id, 123456789)).toThrow()
+        expect(() => BridgeHelpers.getGatewaysByChainIds(chainsConfig.aztecDevnet.chain.id, 123456789)).toThrow()
       })
     })
   })
 
   describe("gatewayAddresses", () => {
     it("should have gateway for aztecSepolia", () => {
-      expect(gatewayAddresses[aztecSepolia.id]).toBeDefined()
+      expect(chainsConfig.aztecDevnet.gatewayAddress).toBeDefined()
     })
 
     it("should have gateway for baseSepolia", () => {
-      expect(gatewayAddresses[baseSepolia.id]).toBeDefined()
+      expect(chainsConfig.baseSepolia.gatewayAddress).toBeDefined()
     })
   })
 

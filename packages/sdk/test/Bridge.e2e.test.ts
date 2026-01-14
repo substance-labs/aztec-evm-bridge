@@ -1,23 +1,30 @@
-import { describe, expect, beforeEach, afterEach, it, vi } from "vitest"
+import { describe, expect, beforeEach, afterEach, it } from "vitest"
 import { Fr } from "@aztec/aztec.js/fields"
-import { baseSepolia } from "viem/chains"
 import { Hex, isHex, padHex } from "viem"
-import { AzguardClient } from "@azguardwallet/client"
+import type { AzguardClient } from "@azguardwallet/client"
 import { privateKeyToAddress } from "viem/accounts"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
 import type { Wallet } from "@aztec/aztec.js/wallet"
 import { TestWallet } from "@aztec/test-wallet/server"
 import { rmSync } from "fs"
 
-<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
-import { Bridge, aztecSepolia, ResolvedOrder, OrderDataEncoder, getAztecAddressFromAzguardAccount } from "../src"
-========
-import { Bridge, chainsConfig, ResolvedOrder, OrderDataEncoder } from "../../src"
-import { BridgeContext } from "../../src/context/BridgeContext"
->>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
+import { Bridge, chainsConfig, ResolvedOrder, OrderDataEncoder, getAztecAddressFromAzguardAccount } from "../src"
 
-const WETH_ON_AZTEC_SEPOLIA_ADDRESS = "0x0d48b44cb12b0e13bae0412b345b39dcf17404b4ce63a494eff54c7bc2fd9691"
-const WETH_ON_BASE_SEPOLIA_ADDRESS = "0xAf31a5CFf95131B2E0D3fa89125342984567f399"
+// Token addresses must match filler config for e2e tests to work
+const TOKEN_ON_AZTEC_ADDRESS = "0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1"
+const TOKEN_ON_BASE_ADDRESS = "0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055"
+
+// Check if external filler service is running
+const EXTERNAL_FILLER = process.env.EXTERNAL_FILLER === "true" || process.env.USE_EXTERNAL_FILLER === "true"
+
+/**
+ * Helper function to fill an order when no external filler is running.
+ * This allows tests to be self-contained without requiring a separate filler service.
+ */
+async function selfFillOrder(bridge: Bridge, orderId: Hex, resolvedOrder: ResolvedOrder): Promise<Hex> {
+  const orderData = OrderDataEncoder.decode(resolvedOrder.fillInstructions[0].originData)
+  return await bridge.fillOrder({ orderId, orderData })
+}
 
 const cleanupPxeStore = () => {
   try {
@@ -39,13 +46,18 @@ const setup = async () => {
 
   cleanupPxeStore()
 
-  const aztecNodeUrl = "https://devnet.aztec-labs.com"
+  const aztecNodeUrl = "https://next.devnet.aztec-labs.com"
   const aztecNode = createAztecNodeClient(aztecNodeUrl)
 
   const testWallet = await TestWallet.create(aztecNode, {
     l1Contracts: await aztecNode.getL1ContractAddresses(),
-    proverEnabled: false,
+    proverEnabled: true, // Required for devnet
   })
+
+  // Register the Sponsored FPC contract before creating accounts
+  const { getSponsoredFPCInstance, SponsoredFPCContractArtifact } = await import("../src/utils/fpc")
+  const sponsoredFPC = await getSponsoredFPCInstance()
+  await testWallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
 
   const secretKey = Fr.fromHexString(process.env.AZTEC_SECRET_KEY)
   const salt = Fr.fromHexString(process.env.AZTEC_KEY_SALT)
@@ -55,17 +67,8 @@ const setup = async () => {
 
   await testWallet.registerSender(aztecAddress)
 
-  try {
-    const deployMethod = await accountManager.getDeployMethod()
-    const completeAddress = await accountManager.getCompleteAddress()
-    await deployMethod.send({ from: completeAddress.address }).wait()
-  } catch (e: unknown) {
-    const error = e as Error
-    const isAlreadyDeployed = error?.message?.includes("Existing nullifier")
-    if (!isAlreadyDeployed) {
-      console.error("Unexpected error deploying account:", error?.message || String(e))
-    }
-  }
+  // Note: Account deployment is skipped as the account should already be deployed on devnet
+  // If not deployed, the first transaction will fail
 
   return { wallet: testWallet, aztecAddress }
 }
@@ -75,8 +78,11 @@ const setup = async () => {
  *
  * ⚠️ IMPORTANT:
  * - Ensure accounts own WETH on both Base Sepolia and Aztec Sepolia
- * - A filler service must be running for order fill tests
  * - Set required environment variables: AZTEC_SECRET_KEY, AZTEC_KEY_SALT, EVM_PK
+ *
+ * 📋 FILLER MODES:
+ * - EXTERNAL_FILLER=false (default): Tests self-fill orders, no external filler service needed
+ * - EXTERNAL_FILLER=true: Tests rely on external filler service, explicit fill tests are skipped
  */
 describe("Bridge E2E", { timeout: 600000 }, () => {
   beforeEach(async () => {
@@ -101,7 +107,7 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       await expect(
         Bridge.create({
           azguardClient: {} as AzguardClient,
-          evmPrivateKey: process.env.EVM_PK as Hex,
+          evmPrivateKey: "0x1234567890123456789012345678901234567890123456789012345678901234" as Hex,
           evmProvider: {},
         }),
       ).rejects.toThrow("Cannot specify both evmPrivateKey and evmProvider")
@@ -118,13 +124,13 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
     })
 
     it("should accept azguardClient in constructor", async () => {
-      const mockAzguardClient = {
+      const azguardClient = {
         accounts: ["aztec:1:0x1234567890123456789012345678901234567890123456789012345678901234"],
-        execute: vi.fn(),
+        execute: async () => ({ success: true }),
       } as unknown as AzguardClient
 
       const bridge = await Bridge.create({
-        azguardClient: mockAzguardClient,
+        azguardClient,
         evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
       })
 
@@ -132,7 +138,6 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
     })
   })
 
-<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
   describe("Account Handling", () => {
     it("should handle azguardClient account in CAIP format", () => {
       const caipAccount = "aztec:1:0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" as const
@@ -148,9 +153,6 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
   })
 
   describe("Aztec → Base (TestWallet)", () => {
-========
-  describe.skip("Aztec -> Base", () => {
->>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
     it("should create a public order from Aztec to Base", async () => {
       const { wallet } = await setup()
 
@@ -161,28 +163,41 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       let onOrderOpenedCalled = false
       let onOrderFilledCalled = false
+      let capturedOrderId: Hex | undefined
+      let capturedResolvedOrder: ResolvedOrder | undefined
 
-      const result = await bridge.openOrder(
+      // If no external filler, we need to capture order details and self-fill
+      const openOrderPromise = bridge.openOrder(
         {
           chainIdIn: chainsConfig.aztecDevnet.chain.id,
-          chainIdOut: baseSepolia.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+          tokenOut: TOKEN_ON_BASE_ADDRESS,
           mode: "public",
           data: padHex("0x"),
           recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
         },
         {
-          onOrderOpened: () => {
+          onOrderOpened: ({ orderId, resolvedOrder }) => {
+            console.log("onOrderOpened called")
             onOrderOpenedCalled = true
+            capturedOrderId = orderId
+            capturedResolvedOrder = resolvedOrder
+            // Self-fill if no external filler
+            if (!EXTERNAL_FILLER && capturedOrderId && capturedResolvedOrder) {
+              selfFillOrder(bridge, capturedOrderId, capturedResolvedOrder).catch(console.error)
+            }
           },
           onOrderFilled: () => {
+            console.log("onOrderFilled called")
             onOrderFilledCalled = true
           },
         },
       )
+
+      const result = await openOrderPromise
 
       expect(isHex(result.orderOpenedTxHash)).toBe(true)
       expect(isHex(result.orderFilledTxHash)).toBe(true)
@@ -197,20 +212,31 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         aztecWallet: wallet,
       })
 
+      let capturedOrderId: Hex | undefined
+      let capturedResolvedOrder: ResolvedOrder | undefined
+
       const result = await bridge.openOrder(
         {
           chainIdIn: chainsConfig.aztecDevnet.chain.id,
-          chainIdOut: baseSepolia.id,
+          chainIdOut: chainsConfig.baseSepolia.chain.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+          tokenOut: TOKEN_ON_BASE_ADDRESS,
           mode: "private",
           data: padHex("0x"),
           recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
         },
         {
-          onOrderOpened: ({ transactionHash }) => expect(isHex(transactionHash)).toBe(true),
+          onOrderOpened: ({ transactionHash, orderId, resolvedOrder }) => {
+            expect(isHex(transactionHash)).toBe(true)
+            capturedOrderId = orderId
+            capturedResolvedOrder = resolvedOrder
+            // Self-fill if no external filler
+            if (!EXTERNAL_FILLER && capturedOrderId && capturedResolvedOrder) {
+              selfFillOrder(bridge, capturedOrderId, capturedResolvedOrder).catch(console.error)
+            }
+          },
           onOrderFilled: ({ transactionHash }) => expect(isHex(transactionHash)).toBe(true),
         },
       )
@@ -231,11 +257,11 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           bridge.openOrder(
             {
               chainIdIn: chainsConfig.aztecDevnet.chain.id,
-              chainIdOut: baseSepolia.id,
+              chainIdOut: chainsConfig.baseSepolia.chain.id,
               amountIn: 1n,
               amountOut: 1000000000n,
-              tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-              tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+              tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+              tokenOut: TOKEN_ON_BASE_ADDRESS,
               mode: "private",
               data: padHex("0x"),
               recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
@@ -253,13 +279,13 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       const txHash = await bridge.refundOrder({
         orderId,
         chainIdIn: chainsConfig.aztecDevnet.chain.id,
-        chainIdOut: baseSepolia.id,
+        chainIdOut: chainsConfig.baseSepolia.chain.id,
       })
       expect(isHex(txHash)).toBe(true)
     })
 
-    it.skip("should open a private order and fill it", async () => {
-      // NOTE: Skipped - requires filler service with sufficient output tokens
+    // Skip explicit fill test when external filler is running (redundant with self-filling tests)
+    it.skipIf(EXTERNAL_FILLER)("should open a private order and fill it", async () => {
       const { wallet } = await setup()
       const bridge = await Bridge.create({
         evmPrivateKey: process.env.EVM_PK as Hex,
@@ -271,11 +297,11 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           bridge.openOrder(
             {
               chainIdIn: chainsConfig.aztecDevnet.chain.id,
-              chainIdOut: baseSepolia.id,
+              chainIdOut: chainsConfig.baseSepolia.chain.id,
               amountIn: 1n,
               amountOut: 1n,
-              tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-              tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+              tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+              tokenOut: TOKEN_ON_BASE_ADDRESS,
               mode: "private",
               data: padHex("0x"),
               recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
@@ -287,19 +313,12 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         })
 
       const { orderId, resolvedOrder } = await openOrder()
-      const txHash = await bridge.fillOrder({
-        orderId,
-        orderData: OrderDataEncoder.decode(resolvedOrder.fillInstructions[0].originData),
-      })
+      const txHash = await selfFillOrder(bridge, orderId, resolvedOrder)
       expect(isHex(txHash)).toBe(true)
     })
   })
 
-<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
   describe("Base → Aztec (TestWallet)", () => {
-========
-  describe.skip("Base -> Aztec", () => {
->>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
     it("should open a private order from Base to Aztec", async () => {
       const { wallet, aztecAddress } = await setup()
       const bridge = await Bridge.create({
@@ -311,15 +330,17 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
       let onOrderFilledCalled = false
       let onSecretCalled = false
       let onOrderClaimedCalled = false
+      let capturedOrderId: Hex | undefined
+      let capturedResolvedOrder: ResolvedOrder | undefined
 
       const result = await bridge.openOrder(
         {
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_BASE_ADDRESS,
+          tokenOut: TOKEN_ON_AZTEC_ADDRESS,
           mode: "private",
           data: padHex("0x"),
           recipient: aztecAddress.toString(),
@@ -328,8 +349,14 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           onSecret: () => {
             onSecretCalled = true
           },
-          onOrderOpened: () => {
+          onOrderOpened: ({ orderId, resolvedOrder }) => {
             onOrderOpenedCalled = true
+            capturedOrderId = orderId
+            capturedResolvedOrder = resolvedOrder
+            // Self-fill if no external filler
+            if (!EXTERNAL_FILLER && capturedOrderId && capturedResolvedOrder) {
+              selfFillOrder(bridge, capturedOrderId, capturedResolvedOrder).catch(console.error)
+            }
           },
           onOrderFilled: () => {
             onOrderFilledCalled = true
@@ -357,22 +384,30 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       let onOrderOpenedCalled = false
       let onOrderFilledCalled = false
+      let capturedOrderId: Hex | undefined
+      let capturedResolvedOrder: ResolvedOrder | undefined
 
       const result = await bridge.openOrder(
         {
-          chainIdIn: baseSepolia.id,
+          chainIdIn: chainsConfig.baseSepolia.chain.id,
           chainIdOut: chainsConfig.aztecDevnet.chain.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_BASE_ADDRESS,
+          tokenOut: TOKEN_ON_AZTEC_ADDRESS,
           mode: "public",
           data: padHex("0x"),
           recipient: aztecAddress.toString(),
         },
         {
-          onOrderOpened: () => {
+          onOrderOpened: ({ orderId, resolvedOrder }) => {
             onOrderOpenedCalled = true
+            capturedOrderId = orderId
+            capturedResolvedOrder = resolvedOrder
+            // Self-fill if no external filler
+            if (!EXTERNAL_FILLER && capturedOrderId && capturedResolvedOrder) {
+              selfFillOrder(bridge, capturedOrderId, capturedResolvedOrder).catch(console.error)
+            }
           },
           onOrderFilled: () => {
             onOrderFilledCalled = true
@@ -396,12 +431,12 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         new Promise((resolve) => {
           bridge.openOrder(
             {
-              chainIdIn: baseSepolia.id,
+              chainIdIn: chainsConfig.baseSepolia.chain.id,
               chainIdOut: chainsConfig.aztecDevnet.chain.id,
               amountIn: 1n,
               amountOut: 1000000000n,
-              tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-              tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+              tokenIn: TOKEN_ON_BASE_ADDRESS,
+              tokenOut: TOKEN_ON_AZTEC_ADDRESS,
               mode: "private",
               data: padHex("0x"),
               recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
@@ -418,14 +453,14 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
 
       const txHash = await bridge.refundOrder({
         orderId,
-        chainIdIn: baseSepolia.id,
+        chainIdIn: chainsConfig.baseSepolia.chain.id,
         chainIdOut: chainsConfig.aztecDevnet.chain.id,
       })
       expect(isHex(txHash)).toBe(true)
     })
 
-    it.skip("should open a private order and fill it", async () => {
-      // NOTE: Skipped - requires filler service
+    // Skip explicit fill test when external filler is running (redundant with self-filling tests)
+    it.skipIf(EXTERNAL_FILLER)("should open a private order and fill it", async () => {
       const { wallet } = await setup()
       const bridge = await Bridge.create({
         evmPrivateKey: process.env.EVM_PK as Hex,
@@ -436,12 +471,12 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
         new Promise((resolve) => {
           bridge.openOrder(
             {
-              chainIdIn: baseSepolia.id,
+              chainIdIn: chainsConfig.baseSepolia.chain.id,
               chainIdOut: chainsConfig.aztecDevnet.chain.id,
               amountIn: 1n,
               amountOut: 1n,
-              tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-              tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+              tokenIn: TOKEN_ON_BASE_ADDRESS,
+              tokenOut: TOKEN_ON_AZTEC_ADDRESS,
               mode: "private",
               data: padHex("0x"),
               recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
@@ -452,213 +487,9 @@ describe("Bridge E2E", { timeout: 600000 }, () => {
           )
         })
 
-<<<<<<<< HEAD:packages/sdk/test/Bridge.e2e.test.ts
-========
-    it.skip("should open a private order from Base to Aztec and then fill it", async () => {
-      const { wallet } = await setup()
-      const bridge = await Bridge.create({
-        evmPrivateKey: process.env.EVM_PK as Hex,
-        aztecWallet: wallet,
-      })
-
-      const openOrder = (): Promise<{ orderId: Hex; resolvedOrder: ResolvedOrder }> =>
-        new Promise((resolve) => {
-          bridge.openOrder(
-            {
-              chainIdIn: baseSepolia.id,
-              chainIdOut: chainsConfig.aztecDevnet.chain.id,
-              amountIn: 1n,
-              amountOut: 1n,
-              tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-              tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-              mode: "public",
-              data: padHex("0x"),
-              recipient: padHex(privateKeyToAddress(process.env.EVM_PK as Hex)),
-            },
-            {
-              onOrderOpened: ({ orderId, resolvedOrder }) => resolve({ orderId, resolvedOrder }),
-            },
-          )
-        })
->>>>>>>> 479064a (test: update tests):packages/sdk/test/e2e/Bridge.test.ts
       const { orderId, resolvedOrder } = await openOrder()
-      const txHash = await bridge.fillOrder({
-        orderId,
-        orderData: OrderDataEncoder.decode(resolvedOrder.fillInstructions[0].originData),
-      })
+      const txHash = await selfFillOrder(bridge, orderId, resolvedOrder)
       expect(isHex(txHash)).toBe(true)
-    })
-  })
-
-  /**
-   * Azguard Wallet Integration Tests
-   *
-   * ⚠️ PREREQUISITES:
-   * 1. Initialize AzguardClient and pass to tests
-   * 2. Ensure Azguard wallet is running and accessible
-   * 3. Account should have WETH on both chains
-   * 4. A filler service must be running
-   *
-   * Remove .skip to run when Azguard is available.
-   */
-  describe.skip("Aztec → Base (Azguard)", () => {
-    let azguardClient: AzguardClient
-
-    beforeEach(async () => {
-      cleanupPxeStore()
-      // TODO: Initialize AzguardClient instance
-      azguardClient = null as unknown as AzguardClient
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    })
-
-    it("should open a public order from Aztec to Base", async () => {
-      const bridge = await Bridge.create({
-        azguardClient,
-        evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-      })
-
-      const evmAddress = process.env.EVM_ADDRESS as `0x${string}`
-      let orderOpenedTxHash: string | undefined
-      let orderFilledTxHash: string | undefined
-
-      const result = await bridge.openOrder(
-        {
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
-          amountIn: 1n,
-          amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: padHex(WETH_ON_BASE_SEPOLIA_ADDRESS),
-          recipient: padHex(evmAddress),
-          mode: "public",
-          data: padHex("0x"),
-        },
-        {
-          onOrderOpened: ({ transactionHash }) => {
-            orderOpenedTxHash = transactionHash
-          },
-          onOrderFilled: ({ transactionHash }) => {
-            orderFilledTxHash = transactionHash
-          },
-        },
-      )
-
-      expect(result.orderOpenedTxHash).toBeDefined()
-      expect(result.resolvedOrder.orderId).toBeDefined()
-      expect(orderOpenedTxHash).toBeDefined()
-      expect(orderFilledTxHash).toBeDefined()
-    })
-
-    it("should open a private order from Aztec to Base", async () => {
-      const bridge = await Bridge.create({
-        azguardClient,
-        evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-      })
-
-      const evmAddress = process.env.EVM_ADDRESS as `0x${string}`
-      let secret: string | undefined
-
-      const result = await bridge.openOrder(
-        {
-          chainIdIn: aztecSepolia.id,
-          chainIdOut: baseSepolia.id,
-          amountIn: 1n,
-          amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: padHex(WETH_ON_BASE_SEPOLIA_ADDRESS),
-          recipient: padHex(evmAddress),
-          mode: "private",
-          data: padHex("0x"),
-        },
-        {
-          onSecret: ({ secret: s }) => {
-            secret = s
-          },
-        },
-      )
-
-      expect(result.orderOpenedTxHash).toBeDefined()
-      expect(secret).toBeDefined()
-      expect(secret?.startsWith("0x")).toBe(true)
-    })
-  })
-
-  describe.skip("Base → Aztec (Azguard)", () => {
-    let azguardClient: AzguardClient
-
-    beforeEach(async () => {
-      cleanupPxeStore()
-      // TODO: Initialize AzguardClient instance
-      azguardClient = null as unknown as AzguardClient
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    })
-
-    it("should open a public order from Base to Aztec", async () => {
-      const bridge = await Bridge.create({
-        azguardClient,
-        evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-      })
-
-      const selectedAccount = azguardClient.accounts[0]
-      const aztecAddress = getAztecAddressFromAzguardAccount(selectedAccount)
-
-      const result = await bridge.openOrder(
-        {
-          chainIdIn: baseSepolia.id,
-          chainIdOut: aztecSepolia.id,
-          amountIn: 1n,
-          amountOut: 1n,
-          tokenIn: padHex(WETH_ON_BASE_SEPOLIA_ADDRESS),
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          recipient: aztecAddress,
-          mode: "public",
-          data: padHex("0x"),
-        },
-        {
-          onOrderFilled: () => {},
-          onOrderClaimed: () => {},
-        },
-      )
-
-      expect(result.orderOpenedTxHash).toBeDefined()
-    })
-
-    it("should open a private order from Base to Aztec", async () => {
-      const bridge = await Bridge.create({
-        azguardClient,
-        evmPrivateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-      })
-
-      const selectedAccount = azguardClient.accounts[0]
-      const aztecAddress = getAztecAddressFromAzguardAccount(selectedAccount)
-      let secret: string | undefined
-      let orderClaimedTxHash: string | undefined
-
-      const result = await bridge.openOrder(
-        {
-          chainIdIn: baseSepolia.id,
-          chainIdOut: aztecSepolia.id,
-          amountIn: 1n,
-          amountOut: 1n,
-          tokenIn: padHex(WETH_ON_BASE_SEPOLIA_ADDRESS),
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          recipient: aztecAddress,
-          mode: "private",
-          data: padHex("0x"),
-        },
-        {
-          onSecret: ({ secret: s }) => {
-            secret = s
-          },
-          onOrderClaimed: ({ transactionHash }) => {
-            orderClaimedTxHash = transactionHash
-          },
-        },
-      )
-
-      expect(result.orderOpenedTxHash).toBeDefined()
-      expect(secret).toBeDefined()
-      expect(orderClaimedTxHash).toBeDefined()
     })
   })
 })

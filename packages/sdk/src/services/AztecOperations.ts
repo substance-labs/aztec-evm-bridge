@@ -97,14 +97,11 @@ export class AztecOperations {
       if (!instance) {
         throw new Error(`Contract instance not found for gateway address ${gateway}`)
       }
-      await wallet.registerContract({ instance, artifact: AztecGateway7683Contract.artifact })
+      await wallet.registerContract(instance, AztecGateway7683Contract.artifact)
 
       // Register the Sponsored FPC contract
       const sponsoredFPC = await getSponsoredFPCInstance()
-      await wallet.registerContract({
-        instance: sponsoredFPC,
-        artifact: SponsoredFPCContractArtifact,
-      })
+      await wallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
 
       this.#aztecGatewayRegistered = true
     }
@@ -121,7 +118,7 @@ export class AztecOperations {
       throw new Error(`Token contract instance not found for address ${tokenAddress}`)
     }
 
-    await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+    await wallet.registerContract(tokenInstance, TokenContractArtifact)
     return TokenContract.at(AztecAddress.fromString(tokenAddress), wallet)
   }
 
@@ -146,30 +143,39 @@ export class AztecOperations {
     const aztecGateway = await AztecGateway7683Contract.at(AztecAddress.fromString(gatewayOut), wallet)
 
     // Create auth witness
+    // Pre-compute the function call and use CallIntent to avoid instanceof check issues
     let witness
     if (isPrivate) {
-      witness = await account.createAuthWit({
-        caller: AztecAddress.fromString(gatewayOut),
-        action: token.methods.transfer_private_to_public(
+      const action = token
+        .withWallet(wallet)
+        .methods.transfer_private_to_public(
           account.getAddress(),
           AztecAddress.fromString(gatewayOut),
           orderData.amountOut,
           orderData.senderNonce,
-        ),
+        )
+      const call = await action.getFunctionCall()
+      witness = await account.createAuthWit({
+        caller: AztecAddress.fromString(gatewayOut),
+        call,
       } as any)
     } else {
+      const action = token
+        .withWallet(wallet)
+        .methods.transfer_public_to_public(
+          account.getAddress(),
+          AztecAddress.fromString(orderData.recipient),
+          orderData.amountOut,
+          orderData.senderNonce,
+        )
+      const call = await action.getFunctionCall()
       await (
         await setPublicAuthWit(
           wallet,
           account.getAddress(),
           {
             caller: AztecAddress.fromString(gatewayOut),
-            action: token.methods.transfer_public_to_public(
-              account.getAddress(),
-              AztecAddress.fromString(orderData.recipient),
-              orderData.amountOut,
-              orderData.senderNonce,
-            ),
+            call,
           },
           true,
         )

@@ -1,9 +1,8 @@
 import { AbiEvent, Chain, createPublicClient, erc20Abi, Hex, http, padHex } from "viem"
-import * as evmChains from "viem/chains"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { computeSecretHash } from "@aztec/stdlib/hash"
 import { sleep } from "@aztec/foundation/sleep"
 import { OkResult, SendTransactionResult, SimulateViewsResult } from "@azguardwallet/types"
 import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
@@ -61,7 +60,7 @@ export class EvmToAztecOperations {
 
     const orderData: OrderData = {
       sender: padHex(sender),
-      recipient: secret ? (await poseidon2Hash([secret.toBuffer()])).toString() : padHex(recipient),
+      recipient: secret ? (await computeSecretHash(secret)).toString() : padHex(recipient),
       inputToken: padHex(tokenIn),
       outputToken: padHex(tokenOut),
       amountIn,
@@ -241,7 +240,7 @@ export class EvmToAztecOperations {
     if (!tokenInstance) {
       throw new Error(`Token contract instance not found for address ${orderData.outputToken}`)
     }
-    await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+    await wallet.registerContract(tokenInstance, TokenContractArtifact)
     const [token, aztecGateway] = await Promise.all([
       TokenContract.at(AztecAddress.fromString(orderData.outputToken), wallet),
       AztecGateway7683Contract.at(AztecAddress.fromString(gatewayOut), wallet),
@@ -249,28 +248,36 @@ export class EvmToAztecOperations {
 
     let witness
     if (isPrivate) {
+      // Pre-compute the function call and use CallIntent to avoid instanceof check issues
+      const action = token.withWallet(wallet).methods.transfer_private_to_public(
+        account.getAddress(),
+        AztecAddress.fromString(gatewayOut), // NOTE: private orders must be claimed by the user
+        orderData.amountOut,
+        orderData.senderNonce,
+      )
+      const call = await action.getFunctionCall()
       witness = await account.createAuthWit({
         caller: AztecAddress.fromString(gatewayOut),
-        action: token.methods.transfer_private_to_public(
-          account.getAddress(),
-          AztecAddress.fromString(gatewayOut), // NOTE: private orders must be claimed by the user
-          orderData.amountOut,
-          orderData.senderNonce,
-        ),
+        call,
       } as any)
     } else {
+      // Pre-compute the function call and use CallIntent to avoid instanceof check issues
+      const action = token
+        .withWallet(wallet)
+        .methods.transfer_public_to_public(
+          account.getAddress(),
+          AztecAddress.fromString(orderData.recipient),
+          orderData.amountOut,
+          orderData.senderNonce,
+        )
+      const call = await action.getFunctionCall()
       await (
         await setPublicAuthWit(
           wallet,
           account.getAddress(),
           {
             caller: AztecAddress.fromString(gatewayOut),
-            action: token.methods.transfer_public_to_public(
-              account.getAddress(),
-              AztecAddress.fromString(orderData.recipient),
-              orderData.amountOut,
-              orderData.senderNonce,
-            ),
+            call,
           },
           true,
         )
@@ -404,7 +411,7 @@ export class EvmToAztecOperations {
 
     if (this.context.azguardClient) {
       // NOTE: Azguard currently doesn't expose the actively selected account.
-      // As a workaround, we default to using accounts[0], assuming it's the connected one.
+      // Default to accounts[0], assuming it's the connected one.
       const selectedAccount = this.context.azguardClient!.accounts[0]
       const [response] = await this.context.azguardClient!.execute([
         {
@@ -441,10 +448,7 @@ export class EvmToAztecOperations {
     }
 
     try {
-      await wallet.registerContract({
-        instance: tokenInstance,
-        artifact: TokenContractArtifact,
-      })
+      await wallet.registerContract(tokenInstance, TokenContractArtifact)
     } catch (e) {
       // Token might already be registered, ignore error
       console.warn(`Token contract at ${tokenAddress.toString()} might already be registered.`)
@@ -478,7 +482,7 @@ export class EvmToAztecOperations {
 
     if (this.context.azguardClient) {
       // NOTE: Azguard currently doesn't expose the actively selected account.
-      // As a workaround, we default to using accounts[0], assuming it's the connected one.
+      // Default to accounts[0], assuming it's the connected one.
       const selectedAccount = this.context.azguardClient!.accounts[0]
       while (true) {
         const [response] = await this.context.azguardClient!.execute([

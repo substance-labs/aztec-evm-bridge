@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { baseSepolia } from "viem/chains"
 import { Fr } from "@aztec/aztec.js/fields"
 import { Hex, isHex, padHex } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
 import { TestWallet } from "@aztec/test-wallet/client/lazy"
 
@@ -10,18 +11,18 @@ import { getBrowserTestEnv } from "./utils/env"
 
 const env = getBrowserTestEnv()
 
-const WETH_ON_AZTEC_SEPOLIA_ADDRESS: `0x${string}` =
-  "0x089d76aaa3261376f2073894cddff9a070c1ca2c3ae2a2b25fcce25d68caae81"
-const WETH_ON_BASE_SEPOLIA_ADDRESS: `0x${string}` = "0xAf31a5CFf95131B2E0D3fa89125342984567f399"
-const DEFAULT_AZTEC_NODE_URL = env.AZTEC_NODE_URL ?? "https://devnet.aztec-labs.com"
+// Token addresses must match filler config for e2e tests to work
+const TOKEN_ON_AZTEC_ADDRESS: `0x${string}` = "0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1"
+const TOKEN_ON_BASE_ADDRESS: `0x${string}` = "0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055"
+const DEFAULT_AZTEC_NODE_URL = env.AZTEC_NODE_URL ?? "https://next.devnet.aztec-labs.com"
 
 const REQUIRED_ENV_VARS = ["EVM_PK", "AZTEC_SECRET_KEY", "AZTEC_KEY_SALT"] as const
 const missingEnvVar = REQUIRED_ENV_VARS.find((key) => !env[key])
-const browserE2EEnabled = env.BROWSER_E2E === "true"
-const canRunE2E = browserE2EEnabled && !missingEnvVar
+const hasIndexedDB = typeof indexedDB !== "undefined"
+const canRunE2E = !missingEnvVar && hasIndexedDB
 
 if (!canRunE2E) {
-  const reason = !browserE2EEnabled ? "BROWSER_E2E flag is not set" : `Missing ${missingEnvVar}`
+  const reason = !hasIndexedDB ? "indexedDB is not defined" : `Missing ${missingEnvVar}`
   console.warn(`[browser-e2e] skipping E2E tests: ${reason}`)
 }
 
@@ -34,28 +35,31 @@ async function setupBrowserAztecAccount() {
   const salt = Fr.fromHexString(env.AZTEC_KEY_SALT as Hex)
   const testWallet = await TestWallet.create(aztecNode, {
     l1Contracts: await aztecNode.getL1ContractAddresses(),
-    proverEnabled: false,
+    proverEnabled: true, // Required for devnet
   })
 
+  // Register the Sponsored FPC contract before creating accounts
+  const { getSponsoredFPCInstance, SponsoredFPCContractArtifact } = await import("../src/utils/fpc")
+  const sponsoredFPC = await getSponsoredFPCInstance()
+  await testWallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
+
+  // Create account using TestWallet
   const accountManager = await testWallet.createSchnorrAccount(secretKey, salt)
+  const aztecAddress = accountManager.address
 
-  try {
-    const deployMethod = await accountManager.getDeployMethod()
-    const completeAddress = await accountManager.getCompleteAddress()
-    await deployMethod.send({ from: completeAddress.address }).wait()
-  } catch (e) {
-    // Account already deployed or error deploying
-    console.log("[browser-e2e] account deployment skipped or failed:", (e as Error).message)
-  }
+  // Register the account sender
+  await testWallet.registerSender(aztecAddress)
 
-  return { wallet: testWallet, aztecAddress: accountManager.address }
+  // Note: Account deployment is skipped as the account should already be deployed on devnet
+  // If not deployed, the first transaction will fail
+
+  return { wallet: testWallet, aztecAddress }
 }
 
 /**
  * Bridge E2E Tests (Browser)
  *
  * ⚠️ PREREQUISITES:
- * - Set BROWSER_E2E=true to enable these tests
  * - Set EVM_PK, AZTEC_SECRET_KEY, AZTEC_KEY_SALT environment variables
  * - Accounts must have WETH on both Base Sepolia and Aztec Sepolia
  * - A filler service must be running
@@ -83,8 +87,8 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
           chainIdOut: aztecSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_BASE_ADDRESS,
+          tokenOut: TOKEN_ON_AZTEC_ADDRESS,
           mode: "private",
           data: padHex("0x"),
           recipient: aztecAddress.toString(),
@@ -130,8 +134,8 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
           chainIdOut: aztecSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_BASE_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_BASE_ADDRESS,
+          tokenOut: TOKEN_ON_AZTEC_ADDRESS,
           mode: "public",
           data: padHex("0x"),
           recipient: aztecAddress.toString(),
@@ -164,7 +168,9 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
       let onOrderOpenedCalled = false
       let onOrderFilledCalled = false
 
-      const evmAddress = (env.EVM_ADDRESS as `0x${string}`) ?? "0x0000000000000000000000000000000000000000"
+      // Derive EVM address from private key
+      const evmAccount = privateKeyToAccount(env.EVM_PK as Hex)
+      const evmAddress = evmAccount.address
 
       const result = await bridge.openOrder(
         {
@@ -172,8 +178,8 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
           chainIdOut: baseSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+          tokenOut: TOKEN_ON_BASE_ADDRESS,
           mode: "public",
           data: padHex("0x"),
           recipient: padHex(evmAddress),
@@ -202,7 +208,9 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
         aztecWallet: wallet,
       })
 
-      const evmAddress = (env.EVM_ADDRESS as `0x${string}`) ?? "0x0000000000000000000000000000000000000000"
+      // Derive EVM address from private key
+      const evmAccount = privateKeyToAccount(env.EVM_PK as Hex)
+      const evmAddress = evmAccount.address
 
       const result = await bridge.openOrder(
         {
@@ -210,8 +218,8 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
           chainIdOut: baseSepolia.id,
           amountIn: 1n,
           amountOut: 1n,
-          tokenIn: WETH_ON_AZTEC_SEPOLIA_ADDRESS,
-          tokenOut: WETH_ON_BASE_SEPOLIA_ADDRESS,
+          tokenIn: TOKEN_ON_AZTEC_ADDRESS,
+          tokenOut: TOKEN_ON_BASE_ADDRESS,
           mode: "private",
           data: padHex("0x"),
           recipient: padHex(evmAddress),

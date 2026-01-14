@@ -69,7 +69,7 @@ export class AztecToEvmOperations {
     let orderOpenedReceipt
     if (this.context.azguardClient) {
       // NOTE: Azguard currently doesn't expose the actively selected account.
-      // As a workaround, we default to using accounts[0], assuming it's the connected one.
+      // Default to using accounts[0], assuming it's the connected one.
       const selectedAccount = this.context.azguardClient!.accounts[0]
 
       const orderDataEncoder = new OrderDataEncoder({
@@ -139,7 +139,7 @@ export class AztecToEvmOperations {
         throw new Error(`Token contract instance not found for address ${tokenIn}`)
       }
       try {
-        await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+        await wallet.registerContract(tokenInstance, TokenContractArtifact)
       } catch (e) {
         console.warn(`Failed to register token contract at ${tokenIn}: ${e}`)
       }
@@ -152,28 +152,27 @@ export class AztecToEvmOperations {
       const token = await TokenContract.at(AztecAddress.fromString(tokenIn), wallet)
       let witness
       if (isPrivate) {
+        const action = token
+          .withWallet(wallet)
+          .methods.transfer_private_to_public(account.getAddress(), AztecAddress.fromString(gatewayIn), amountIn, nonce)
+        const call = await action.getFunctionCall()
         witness = await account.createAuthWit({
           caller: AztecAddress.fromString(gatewayIn),
-          action: token.methods.transfer_private_to_public(
-            account.getAddress(),
-            AztecAddress.fromString(gatewayIn),
-            amountIn,
-            nonce,
-          ),
+          call,
         } as any)
       } else {
+        const action = token
+          .withWallet(wallet)
+          .methods.transfer_public_to_public(account.getAddress(), AztecAddress.fromString(gatewayIn), amountIn, nonce)
+        const call = await action.getFunctionCall()
+
         await (
           await setPublicAuthWit(
             wallet,
             account.getAddress(),
             {
               caller: AztecAddress.fromString(gatewayIn),
-              action: token.methods.transfer_public_to_public(
-                account.getAddress(),
-                AztecAddress.fromString(gatewayIn),
-                amountIn,
-                nonce,
-              ),
+              call,
             },
             true,
           )
@@ -258,13 +257,22 @@ export class AztecToEvmOperations {
         confirmations: 1,
       })
 
-      // Verify the allowance was set correctly
-      const newAllowance = (await publicClient.readContract({
-        abi: erc20Abi,
-        address: tokenAddress,
-        functionName: "allowance",
-        args: [address, gatewayOut],
-      })) as bigint
+      // Verify the allowance was set correctly with retries (RPC may have eventual consistency)
+      let newAllowance = 0n
+      let retries = 3
+      while (retries > 0) {
+        newAllowance = (await publicClient.readContract({
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: "allowance",
+          args: [address, gatewayOut],
+        })) as bigint
+        if (newAllowance >= orderData.amountOut) break
+        retries--
+        if (retries > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+        }
+      }
 
       if (newAllowance < orderData.amountOut) {
         throw new Error(
@@ -326,10 +334,8 @@ export class AztecToEvmOperations {
       )
     }
 
-    // TODO: Import OPENED constant
-    const OPENED = 1 // Assuming OPENED is 1, need to check constants
+    const OPENED = 1
     if (status !== OPENED) throw new Error("Cannot find an opened order for the specified order id")
-    // NOTE: opened on Aztec -> trigger refund on EVM
 
     const { walletClient, address } = await this.context.getEvmWalletClientAndAddress(chainOut as Chain)
     const log = await this.getAztecOpenLogByOrderId(orderId)
@@ -412,8 +418,6 @@ export class AztecToEvmOperations {
   }
 
   private async getAztecOpenLogByOrderId(orderId: Hex): Promise<ResolvedOrder | undefined> {
-    // TODO: understand why if i use fromBlock and toBlock i always receive the penultimante log.
-    // Basically i never receive the last one even if block numbers are up to date
     const gateway = chainsConfig.aztecDevnet.gatewayAddress
     const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
       contractAddress: AztecAddress.fromString(gateway),

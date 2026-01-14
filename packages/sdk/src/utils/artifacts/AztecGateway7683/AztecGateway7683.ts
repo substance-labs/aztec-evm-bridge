@@ -21,7 +21,6 @@ import {
   Contract,
   ContractBase,
   ContractFunctionInteraction,
-  type ContractInstanceWithAddress,
   type ContractMethod,
   type ContractStorageLayout,
   DeployMethod,
@@ -39,18 +38,18 @@ export const AztecGateway7683ContractArtifact = loadContractArtifact(
  * Type-safe interface for contract AztecGateway7683;
  */
 export class AztecGateway7683Contract extends ContractBase {
-  private constructor(instance: ContractInstanceWithAddress, wallet: Wallet) {
-    super(instance, AztecGateway7683ContractArtifact, wallet)
+  private constructor(address: AztecAddress, wallet: Wallet) {
+    super(address, AztecGateway7683ContractArtifact, wallet)
   }
 
   /**
    * Creates a contract instance.
    * @param address - The deployed contract's address.
    * @param wallet - The wallet to use when interacting with the contract.
-   * @returns A promise that resolves to a new Contract instance.
+   * @returns A new Contract instance.
    */
-  public static async at(address: AztecAddress, wallet: Wallet) {
-    return Contract.at(address, AztecGateway7683Contract.artifact, wallet) as Promise<AztecGateway7683Contract>
+  public static at(address: AztecAddress, wallet: Wallet): AztecGateway7683Contract {
+    return Contract.at(address, AztecGateway7683Contract.artifact, wallet) as AztecGateway7683Contract
   }
 
   /**
@@ -66,7 +65,7 @@ export class AztecGateway7683Contract extends ContractBase {
       PublicKeys.default(),
       wallet,
       AztecGateway7683ContractArtifact,
-      AztecGateway7683Contract.at,
+      (instance, wallet) => AztecGateway7683Contract.at(instance.address, wallet),
       Array.from(arguments).slice(1),
     )
   }
@@ -85,7 +84,7 @@ export class AztecGateway7683Contract extends ContractBase {
       publicKeys,
       wallet,
       AztecGateway7683ContractArtifact,
-      AztecGateway7683Contract.at,
+      (instance, wallet) => AztecGateway7683Contract.at(instance.address, wallet),
       Array.from(arguments).slice(2),
     )
   }
@@ -101,7 +100,7 @@ export class AztecGateway7683Contract extends ContractBase {
       opts.publicKeys ?? PublicKeys.default(),
       opts.wallet,
       AztecGateway7683ContractArtifact,
-      AztecGateway7683Contract.at,
+      (instance, wallet) => AztecGateway7683Contract.at(instance.address, wallet),
       Array.from(arguments).slice(1),
       opts.method ?? "constructor",
     )

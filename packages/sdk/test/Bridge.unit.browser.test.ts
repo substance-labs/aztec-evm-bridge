@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { padHex } from "viem"
-import { baseSepolia } from "viem/chains"
 
 import {
+  Bridge,
   OrderDataEncoder,
   BridgeHelpers,
-  aztecSepolia,
+  chainsConfig,
   getAztecAddressFromAzguardAccount,
   hexToUintArray,
   PRIVATE_ORDER,
@@ -20,7 +20,6 @@ import {
   FILLED,
   FILLED_PRIVATELY,
   AZTEC_VERSION,
-  gatewayAddresses,
   type OrderData,
 } from "../src"
 
@@ -88,8 +87,8 @@ describe("Bridge Unit Tests (browser)", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -127,8 +126,8 @@ describe("Bridge Unit Tests (browser)", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -155,8 +154,8 @@ describe("Bridge Unit Tests (browser)", () => {
         amountIn: 2n ** 128n - 1n, // Large amount
         amountOut: 2n ** 128n - 1n,
         senderNonce: 2n ** 64n - 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: 2 ** 32 - 1, // Max uint32
         data: padHex("0x"),
@@ -181,8 +180,8 @@ describe("Bridge Unit Tests (browser)", () => {
         amountIn: 1000000n,
         amountOut: 999000n,
         senderNonce: 1n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0xabcdef1234567890abcdef1234567890abcdef12", { size: 32 }),
         fillDeadline: Math.floor(Date.now() / 1000) + 3600,
         data: padHex("0x"),
@@ -233,8 +232,8 @@ describe("Bridge Unit Tests (browser)", () => {
         amountIn: 100n,
         amountOut: 99n,
         senderNonce: 5n,
-        originDomain: aztecSepolia.id,
-        destinationDomain: baseSepolia.id,
+        originDomain: chainsConfig.aztecDevnet.chain.id,
+        destinationDomain: chainsConfig.baseSepolia.chain.id,
         destinationSettler: padHex("0x0", { size: 32 }),
         fillDeadline: 1000000,
         data: customData,
@@ -251,13 +250,13 @@ describe("Bridge Unit Tests (browser)", () => {
   describe("BridgeHelpers", () => {
     describe("getChainByChainId", () => {
       it("should return aztecSepolia for aztec chain id", () => {
-        const chain = BridgeHelpers.getChainByChainId(aztecSepolia.id)
-        expect(chain.id).toBe(aztecSepolia.id)
+        const chain = BridgeHelpers.getChainByChainId(chainsConfig.aztecDevnet.chain.id)
+        expect(chain.chain.id).toBe(chainsConfig.aztecDevnet.chain.id)
       })
 
       it("should return EVM chain for valid chain id", () => {
-        const chain = BridgeHelpers.getChainByChainId(baseSepolia.id)
-        expect(chain.id).toBe(baseSepolia.id)
+        const chain = BridgeHelpers.getChainByChainId(chainsConfig.baseSepolia.chain.id)
+        expect(chain.chain.id).toBe(chainsConfig.baseSepolia.chain.id)
       })
 
       it("should throw for unknown chain id", () => {
@@ -271,15 +270,21 @@ describe("Bridge Unit Tests (browser)", () => {
 
     describe("getChainInAndOutByChainIds", () => {
       it("should return both chains for Aztec to EVM", () => {
-        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(aztecSepolia.id, baseSepolia.id)
-        expect(chainIn.id).toBe(aztecSepolia.id)
-        expect(chainOut.id).toBe(baseSepolia.id)
+        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(
+          chainsConfig.aztecDevnet.chain.id,
+          chainsConfig.baseSepolia.chain.id,
+        )
+        expect(chainIn.chain.id).toBe(chainsConfig.aztecDevnet.chain.id)
+        expect(chainOut.chain.id).toBe(chainsConfig.baseSepolia.chain.id)
       })
 
       it("should return both chains for EVM to Aztec", () => {
-        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(baseSepolia.id, aztecSepolia.id)
-        expect(chainIn.id).toBe(baseSepolia.id)
-        expect(chainOut.id).toBe(aztecSepolia.id)
+        const { chainIn, chainOut } = BridgeHelpers.getChainInAndOutByChainIds(
+          chainsConfig.baseSepolia.chain.id,
+          chainsConfig.aztecDevnet.chain.id,
+        )
+        expect(chainIn.chain.id).toBe(chainsConfig.baseSepolia.chain.id)
+        expect(chainOut.chain.id).toBe(chainsConfig.aztecDevnet.chain.id)
       })
     })
 
@@ -307,7 +312,10 @@ describe("Bridge Unit Tests (browser)", () => {
 
     describe("getGatewaysByChainIds", () => {
       it("should return gateways for Aztec to Base Sepolia", () => {
-        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(aztecSepolia.id, baseSepolia.id)
+        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(
+          chainsConfig.aztecDevnet.chain.id,
+          chainsConfig.baseSepolia.chain.id,
+        )
         expect(gatewayIn).toBeDefined()
         expect(gatewayOut).toBeDefined()
         expect(gatewayIn.startsWith("0x")).toBe(true)
@@ -315,17 +323,20 @@ describe("Bridge Unit Tests (browser)", () => {
       })
 
       it("should return gateways for Base Sepolia to Aztec", () => {
-        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(baseSepolia.id, aztecSepolia.id)
+        const { gatewayIn, gatewayOut } = BridgeHelpers.getGatewaysByChainIds(
+          chainsConfig.baseSepolia.chain.id,
+          chainsConfig.aztecDevnet.chain.id,
+        )
         expect(gatewayIn).toBeDefined()
         expect(gatewayOut).toBeDefined()
       })
 
       it("should throw for invalid source chain", () => {
-        expect(() => BridgeHelpers.getGatewaysByChainIds(123456789, baseSepolia.id)).toThrow()
+        expect(() => BridgeHelpers.getGatewaysByChainIds(123456789, chainsConfig.baseSepolia.chain.id)).toThrow()
       })
 
       it("should throw for invalid destination chain", () => {
-        expect(() => BridgeHelpers.getGatewaysByChainIds(aztecSepolia.id, 123456789)).toThrow()
+        expect(() => BridgeHelpers.getGatewaysByChainIds(chainsConfig.aztecDevnet.chain.id, 123456789)).toThrow()
       })
 
       it("should throw for both chains invalid", () => {
@@ -468,37 +479,67 @@ describe("Bridge Unit Tests (browser)", () => {
 
   describe("aztecSepolia chain", () => {
     it("should have correct chain id", () => {
-      expect(aztecSepolia.id).toBeDefined()
-      expect(typeof aztecSepolia.id).toBe("number")
-      expect(aztecSepolia.id).toBe(999999)
+      expect(chainsConfig.aztecDevnet.chain.id).toBeDefined()
+      expect(typeof chainsConfig.aztecDevnet.chain.id).toBe("number")
+      expect(chainsConfig.aztecDevnet.chain.id).toBe(999999)
     })
 
     it("should have rpcUrls", () => {
-      expect(aztecSepolia.rpcUrls).toBeDefined()
-      expect(aztecSepolia.rpcUrls.default).toBeDefined()
-      expect(aztecSepolia.rpcUrls.default.http).toBeDefined()
-      expect(aztecSepolia.rpcUrls.default.http.length).toBeGreaterThan(0)
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls.default).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls.default.http).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.rpcUrls.default.http.length).toBeGreaterThan(0)
     })
 
     it("should have name", () => {
-      expect(aztecSepolia.name).toBeDefined()
-      expect(aztecSepolia.name).toBe("Aztec Sepolia")
+      expect(chainsConfig.aztecDevnet.chain.name).toBeDefined()
+      expect(chainsConfig.aztecDevnet.chain.name).toBe("Aztec Sepolia")
     })
   })
 
   describe("gatewayAddresses", () => {
     it("should have gateway for aztecSepolia", () => {
-      expect(gatewayAddresses[aztecSepolia.id]).toBeDefined()
-      expect(gatewayAddresses[aztecSepolia.id].startsWith("0x")).toBe(true)
+      expect(chainsConfig.aztecDevnet.gatewayAddress).toBeDefined()
+      expect(chainsConfig.aztecDevnet.gatewayAddress.startsWith("0x")).toBe(true)
     })
 
     it("should have gateway for baseSepolia", () => {
-      expect(gatewayAddresses[baseSepolia.id]).toBeDefined()
-      expect(gatewayAddresses[baseSepolia.id].startsWith("0x")).toBe(true)
+      expect(chainsConfig.baseSepolia.gatewayAddress).toBeDefined()
+      expect(chainsConfig.baseSepolia.gatewayAddress.startsWith("0x")).toBe(true)
     })
 
     it("should have different gateways for each chain", () => {
-      expect(gatewayAddresses[aztecSepolia.id]).not.toBe(gatewayAddresses[baseSepolia.id])
+      expect(chainsConfig.aztecDevnet.gatewayAddress).not.toBe(chainsConfig.baseSepolia.gatewayAddress)
+    })
+  })
+
+  describe("Bridge initialization (browser)", () => {
+    const SAMPLE_PRIVATE_KEY = hex32("1")
+
+    it("requires aztecWallet or azguardClient", async () => {
+      await expect(Bridge.create({ evmPrivateKey: SAMPLE_PRIVATE_KEY })).rejects.toThrow(
+        "You must specify aztecWallet or azguardClient",
+      )
+    })
+
+    it("prevents specifying both evmPrivateKey and evmProvider", async () => {
+      await expect(
+        Bridge.create({
+          evmPrivateKey: SAMPLE_PRIVATE_KEY,
+          azguardClient: {} as never,
+          evmProvider: {},
+        }),
+      ).rejects.toThrow("Cannot specify both evmPrivateKey and evmProvider")
+    })
+
+    it("prevents mixing azguard client with wallet", async () => {
+      await expect(
+        Bridge.create({
+          evmPrivateKey: SAMPLE_PRIVATE_KEY,
+          aztecWallet: {} as never,
+          azguardClient: {} as never,
+        }),
+      ).rejects.toThrow("Cannot specify both azguardClient and aztecWallet")
     })
   })
 })

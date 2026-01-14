@@ -1,16 +1,14 @@
-import { bytesToHex, Chain, createPublicClient, encodeAbiParameters, Hex, http, keccak256, padHex } from "viem"
+import { Chain, createPublicClient, encodeAbiParameters, Hex, http, keccak256, padHex } from "viem"
 import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
 import { AztecAddress, EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
-import { sha256ToField } from "@aztec/foundation/crypto"
+import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { hexToBuffer } from "@aztec/foundation/string"
 
 import {
   chainsConfig,
   AZTEC_VERSION,
   aztecRollupContractL1Addresses,
-  FORWARDER_REFUNDED_ORDERS_SLOT,
-  FORWARDER_SETTLE_ORDER_SLOT,
   forwarderAddresses,
   L2_GATEWAY_FILLED_ORDERS_SLOT,
   L2_GATEWAY_REFUNDED_ORDERS_SLOT,
@@ -20,7 +18,6 @@ import {
   FORWARDER_CHAIN,
 } from "../constants"
 import { AztecGateway7683Contract } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
-import l2Gateway7683Abi from "../utils/abi/l2Gateway7683"
 import rollupAbi from "../utils/abi/rollup"
 import forwarderAbi from "../utils/abi/forwarder"
 import anchorRegistryAbi from "../utils/abi/anchorRegistry"
@@ -129,9 +126,8 @@ export class ForwardOperations {
       )
     }
 
-    // TODO: v3 migration - getL2ToL1MembershipWitness not available on AztecNode in v3
-    // This feature needs to be re-implemented using v3 APIs
-    throw new Error("Forward to L2 not yet supported in Aztec v3 - getL2ToL1MembershipWitness API changed")
+    // TODO: implement forward
+    throw new Error("Forward to L2 not yet supported in SDK v2")
 
     /* const wallet = await this.context.getAztecWallet()
     const node = createAztecNodeClient(this.context.aztecNodeUrl!)
@@ -171,7 +167,6 @@ export class ForwardOperations {
     const { chainIdForwarder, chainIdIn, chainIdOut, fillerData, fillTransactionHash, orderId, originData, type } =
       details
     if (!originData || !fillerData || !fillTransactionHash) {
-      // TODO: add indexed to Filled.orderId log and search the Filled log by the orderId
       throw new Error("You must specify originData, fillerData and fillTransactionHash")
     }
     if (chainIdForwarder !== FORWARDER_CHAIN.id) {
@@ -271,7 +266,6 @@ export class ForwardOperations {
     // const l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber)
     // const stateRootInclusionProof = getExecutionStateRootProof(beaconBlock)
 
-    // Temporary workaround until beacon block functionality is restored
     throw new Error("Beacon block processing not yet implemented in this version")
 
     /* Unreachable code - commented out until beacon block processing is restored

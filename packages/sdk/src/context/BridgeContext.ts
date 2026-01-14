@@ -164,14 +164,11 @@ export class BridgeContext {
         if (!instance) {
           throw new Error(`Contract instance not found for gateway address ${gateway}`)
         }
-        await wallet.registerContract({ instance, artifact: AztecGateway7683Contract.artifact })
+        await wallet.registerContract(instance, AztecGateway7683Contract.artifact)
 
         // Register the Sponsored FPC contract
         const sponsoredFPC = await getSponsoredFPCInstance()
-        await wallet.registerContract({
-          instance: sponsoredFPC,
-          artifact: SponsoredFPCContractArtifact,
-        })
+        await wallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
       }
       this.#aztecGatewayRegistered = true
     }
@@ -184,13 +181,10 @@ export class BridgeContext {
     const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
       contractAddress: AztecAddress.fromString(gateway),
     })
-    console.log("Fetched logs:", logs.length)
-    console.log("Looking for orderId:", orderId)
 
     // Filter for Filled events (they have 13 fields: fields[0-12])
     // Open events have 13 fields but different structure
     const filledLogs = logs.filter(({ log }) => log.fields.length === 13 && log.fields[11] !== undefined)
-    console.log("Filled logs count:", filledLogs.length)
 
     const parsedLogs = filledLogs.map(({ log }) => parseFilledLog(log.fields))
     return parsedLogs.find((log) => log.orderId === orderId)
