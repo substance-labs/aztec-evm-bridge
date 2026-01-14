@@ -62,7 +62,7 @@ interface TestWalletAndAccount {
 }
 
 const setup = async (node: AztecNode, portalAddress: EthAddress) => {
-  const sponsoredFPC = await getSponsoredFPCInstance(node)
+  const sponsoredFPC = await getSponsoredFPCInstance()
 
   // Create test wallets
   const userWallet = await TestWallet.create(node, {
@@ -185,7 +185,8 @@ describe("AztecGateway7683", () => {
         detached: true,
         stdio: "ignore",
       })
-      await sleep(45000) // wait for sandbox to be ready
+      await sleep(15000) // wait for sandbox to be ready
+      console.log("Sandbox started with PID:", sandboxInstance.pid)
     }
     node = createAztecNodeClient("http://localhost:8080")
     const nodeInfo = await node.getNodeInfo()

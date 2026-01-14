@@ -6,35 +6,24 @@ import type { Wallet } from "@aztec/aztec.js/wallet"
 import { SponsoredFPCContract, SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
 import type { LogFn } from "@aztec/foundation/log"
 import { createAztecNodeClient, type AztecNode } from "@aztec/aztec.js/node"
+import { getContractInstanceFromInstantiationParams } from "@aztec/stdlib/contract"
 
 const SPONSORED_FPC_SALT = new Fr(0)
 
-// Canonical Sponsored FPC address on devnet (from https://docs.aztec.network/developers/getting_started_on_devnet)
-const CANONICAL_SPONSORED_FPC_ADDRESS = AztecAddress.fromString(
-  "0x1586f476995be97f07ebd415340a14be48dc28c6c661cc6bdddb80ae790caa4e",
-)
-
-export async function getSponsoredFPCInstance(node?: AztecNode): Promise<ContractInstanceWithAddress> {
-  // If node is provided, fetch the instance from the network
-  if (node) {
-    const instance = await node.getContract(CANONICAL_SPONSORED_FPC_ADDRESS)
-    if (!instance) {
-      throw new Error(`Sponsored FPC not found at ${CANONICAL_SPONSORED_FPC_ADDRESS.toString()}`)
-    }
-    return instance
-  }
-  // Otherwise fetch from default devnet node
-  const defaultNode = createAztecNodeClient("https://next.devnet.aztec-labs.com")
-  const instance = await defaultNode.getContract(CANONICAL_SPONSORED_FPC_ADDRESS)
-  if (!instance) {
-    throw new Error(`Sponsored FPC not found at ${CANONICAL_SPONSORED_FPC_ADDRESS.toString()}`)
-  }
+/**
+ * Gets the SponsoredFPC instance by deriving its address from deployment parameters.
+ * This works for both local sandbox and devnet as the address is deterministic.
+ */
+export async function getSponsoredFPCInstance(): Promise<ContractInstanceWithAddress> {
+  const instance = await getContractInstanceFromInstantiationParams(SponsoredFPCContract.artifact, {
+    salt: SPONSORED_FPC_SALT,
+  })
   return instance
 }
 
 export async function getSponsoredFPCAddress(): Promise<AztecAddress> {
-  // Use the canonical devnet address
-  return CANONICAL_SPONSORED_FPC_ADDRESS
+  const instance = await getSponsoredFPCInstance()
+  return instance.address
 }
 
 export async function setupSponsoredFPC(deployer: Wallet, log: LogFn) {
