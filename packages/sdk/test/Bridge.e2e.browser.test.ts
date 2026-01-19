@@ -12,9 +12,16 @@ import { getBrowserTestEnv } from "./utils/env"
 const env = getBrowserTestEnv()
 
 // Token addresses must match filler config for e2e tests to work
-const TOKEN_ON_AZTEC_ADDRESS: `0x${string}` = "0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1"
-const TOKEN_ON_BASE_ADDRESS: `0x${string}` = "0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055"
-const DEFAULT_AZTEC_NODE_URL = env.AZTEC_NODE_URL ?? "https://next.devnet.aztec-labs.com"
+if (!(env as any).AZTEC_TOKEN_ADDRESS) {
+  throw new Error("AZTEC_TOKEN_ADDRESS environment variable is required")
+}
+if (!(env as any).EVM_TOKEN_ADDRESS) {
+  throw new Error("EVM_TOKEN_ADDRESS environment variable is required")
+}
+
+const TOKEN_ON_AZTEC_ADDRESS: `0x${string}` = (env as any).AZTEC_TOKEN_ADDRESS as Hex
+const TOKEN_ON_BASE_ADDRESS: `0x${string}` = (env as any).EVM_TOKEN_ADDRESS as Hex
+const DEFAULT_AZTEC_NODE_URL = (env as any).AZTEC_NODE_URL ?? "https://next.devnet.aztec-labs.com"
 
 const REQUIRED_ENV_VARS = ["EVM_PK", "AZTEC_SECRET_KEY", "AZTEC_KEY_SALT"] as const
 const missingEnvVar = REQUIRED_ENV_VARS.find((key) => !env[key])
@@ -33,8 +40,10 @@ async function setupBrowserAztecAccount() {
 
   const secretKey = Fr.fromHexString(env.AZTEC_SECRET_KEY as Hex)
   const salt = Fr.fromHexString(env.AZTEC_KEY_SALT as Hex)
+
+  const l1Contracts = await aztecNode.getL1ContractAddresses()
   const testWallet = await TestWallet.create(aztecNode, {
-    l1Contracts: await aztecNode.getL1ContractAddresses(),
+    l1Contracts,
     proverEnabled: true, // Required for devnet
   })
 
@@ -94,16 +103,20 @@ describeE2E("Bridge E2E (browser)", { timeout: 600000 }, () => {
           recipient: aztecAddress.toString(),
         },
         {
-          onSecret: () => {
+          onSecret: (secret) => {
+            console.log("[Test] Secret:", secret)
             onSecretCalled = true
           },
-          onOrderOpened: () => {
+          onOrderOpened: (orderOpenedTxHash) => {
+            console.log("[Test] Order opened with tx hash:", orderOpenedTxHash)
             onOrderOpenedCalled = true
           },
-          onOrderFilled: () => {
+          onOrderFilled: (orderFilledTxHash) => {
+            console.log("[Test] Order filled with tx hash:", orderFilledTxHash)
             onOrderFilledCalled = true
           },
-          onOrderClaimed: () => {
+          onOrderClaimed: (orderClaimedTxHash) => {
+            console.log("[Test] Order claimed with tx hash:", orderClaimedTxHash)
             onOrderClaimedCalled = true
           },
         },
