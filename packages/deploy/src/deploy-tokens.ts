@@ -14,7 +14,6 @@ import {
   type TokenDeployment,
 } from "./utils.js"
 
-// Load .env from project root
 config({ path: resolve(projectRoot, ".env") })
 
 const logger = createLogger("deploy-tokens")
@@ -77,7 +76,6 @@ async function deployEvmToken(config: DeployConfig): Promise<{ address: string; 
   const address = addressMatch[1]
   logger.info(`EVM Token deployed at: ${address}`)
 
-  // Wait for deployment to confirm
   await new Promise((r) => setTimeout(r, 5000))
 
   return { address, txHash: txMatch?.[1] }
@@ -116,7 +114,6 @@ async function deployAztecToken(config: DeployConfig): Promise<{ address: string
     config.aztecRpcUrl,
   ])
 
-  // Read deployment address from file (deploy-token.ts saves to deployments/token_deployment.json)
   const deploymentJson = resolve(aztecDir, "deployments", "token_deployment.json")
   const deployment = JSON.parse(readFileSync(deploymentJson, "utf-8"))
 
@@ -158,9 +155,8 @@ async function main() {
     const deployConfig = loadConfig()
 
     const deployment: TokenDeployment = {}
-    const MINT_AMOUNT = "10000000000000000000000" // 10,000 tokens with 18 decimals
+    const MINT_AMOUNT = "10000000000000000000000"
 
-    // Deploy EVM Token
     if (deployConfig.deployType === "all" || deployConfig.deployType === "evm") {
       const evmToken = await deployEvmToken(deployConfig)
       deployment.EVMToken = {
@@ -169,7 +165,6 @@ async function main() {
       }
     }
 
-    // Deploy Aztec Token
     if (deployConfig.deployType === "all" || deployConfig.deployType === "aztec") {
       const aztecToken = await deployAztecToken(deployConfig)
       deployment.AztecToken = {
@@ -178,27 +173,22 @@ async function main() {
       }
     }
 
-    // Save deployment result
     const timestamp = getTimestamp()
     const outputFile = `deployments/tokens_deploy_${timestamp}.json`
     saveJsonFile(outputFile, deployment)
     logger.info(`Deployment saved to: ${outputFile}`)
 
-    // Transfer/Mint tokens to test accounts
     if (deployment.EVMToken) {
-      // Transfer to E2E test address
       if (deployConfig.evmE2ETestAddress) {
         await transferEvmTokens(deployConfig, deployment.EVMToken.address, deployConfig.evmE2ETestAddress, MINT_AMOUNT)
       }
 
-      // Transfer to filler address
       if (deployConfig.evmFillerAddress) {
         await transferEvmTokens(deployConfig, deployment.EVMToken.address, deployConfig.evmFillerAddress, MINT_AMOUNT)
       }
     }
 
     if (deployment.AztecToken) {
-      // Mint to E2E test address
       if (deployConfig.aztecE2ETestAddress) {
         await mintAztecTokens(
           deployConfig,
@@ -209,7 +199,6 @@ async function main() {
         )
       }
 
-      // Mint to filler address
       if (deployConfig.aztecFillerAddress) {
         await mintAztecTokens(
           deployConfig,

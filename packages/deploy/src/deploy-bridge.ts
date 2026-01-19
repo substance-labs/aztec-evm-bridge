@@ -15,7 +15,6 @@ import {
   type BridgeDeployment,
 } from "./utils.js"
 
-// Load .env from project root
 config({ path: resolve(projectRoot, ".env") })
 
 const logger = createLogger("deploy-bridge")
@@ -109,7 +108,6 @@ async function deployL2Gateway(config: DeployConfig, poseidon2: string): Promise
   const broadcast = JSON.parse(readFileSync(broadcastJson, "utf-8"))
   const txHash = broadcast.transactions?.find((t: { contractName: string }) => t.contractName === "L2Gateway7683")?.hash
 
-  // Rename to avoid conflicts
   renameSync(deploymentJson, resolve(evmDir, "deployments", "deployment_l2.json"))
 
   logger.info(`L2Gateway7683 deployed at: ${address}`)
@@ -142,7 +140,6 @@ async function deployForwarder(
   const broadcast = JSON.parse(readFileSync(broadcastJson, "utf-8"))
   const txHash = broadcast.transactions?.find((t: { contractName: string }) => t.contractName === "Forwarder")?.hash
 
-  // Rename to avoid conflicts
   renameSync(deploymentJson, resolve(evmDir, "deployments", "deployment_l1.json"))
 
   logger.info(`Forwarder deployed at: ${address}`)
@@ -165,11 +162,10 @@ async function deployAztecGateway(
     config.l2ChainId,
     forwarderAddress,
     config.aztecRpcUrl,
-    "true", // deployWallet
-    "false", // deployToken
+    "true",
+    "false",
   ])
 
-  // Read deployment address from file (deploy.ts saves to deployments/deployment.json)
   const deploymentJson = resolve(aztecDir, "deployments", "deployment.json")
   const deployment = JSON.parse(readFileSync(deploymentJson, "utf-8"))
 
@@ -192,7 +188,6 @@ async function configureContracts(
   logger.info("Configuring contracts...")
   const evmDir = resolve(projectRoot, "packages", "evm")
 
-  // Configure Forwarder on L1
   logger.info("Setting Aztec Gateway on Forwarder...")
   exec(
     `forge script script/Config.s.sol:Config --broadcast --rpc-url ${config.l1RpcUrl} ` +
@@ -208,7 +203,6 @@ async function configureContracts(
     (t: { function: string }) => t.function === "setAztecGateway7683(bytes32)",
   )?.hash
 
-  // Configure L2Gateway
   logger.info("Setting Aztec Gateway and Forwarder on L2Gateway7683...")
   exec(
     `forge script script/Config.s.sol:Config --broadcast --rpc-url ${config.l2RpcUrl} ` +
@@ -231,19 +225,10 @@ async function main() {
     logger.info("Starting bridge deployment...")
     const deployConfig = loadConfig()
 
-    // 1. Deploy Poseidon2
     const poseidon2 = await deployPoseidon2(deployConfig)
-
-    // 2. Deploy L2Gateway7683
     const l2Gateway = await deployL2Gateway(deployConfig, poseidon2.address)
-
-    // 3. Deploy Forwarder
     const forwarder = await deployForwarder(deployConfig, l2Gateway.address)
-
-    // 4. Deploy Aztec Gateway
     const aztecGateway = await deployAztecGateway(deployConfig, l2Gateway.address, forwarder.address)
-
-    // 5. Configure contracts
     const configResult = await configureContracts(
       deployConfig,
       l2Gateway.address,
@@ -251,7 +236,6 @@ async function main() {
       aztecGateway.address,
     )
 
-    // Save deployment result
     const timestamp = getTimestamp()
     const outputFile = `deployments/deploy_${timestamp}.json`
 
