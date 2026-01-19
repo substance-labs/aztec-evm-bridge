@@ -42,6 +42,19 @@ export interface FillInstruction {
 export type Mode = "private" | "public"
 export type SwapMode = Mode | "privateWithHook" | "publicWithHook"
 
+export type AztecChain = {
+  id: number
+  name: string
+  rpcUrls: {
+    [key: string]: {
+      http: readonly string[]
+    }
+    default: {
+      http: readonly string[]
+    }
+  }
+}
+
 export type InternalChain =
   | {
       type: ChainType.EVM
@@ -50,18 +63,7 @@ export type InternalChain =
     }
   | {
       type: ChainType.AZTEC
-      chain: {
-        id: number
-        name: string
-        rpcUrls: {
-          [key: string]: {
-            http: readonly string[]
-          }
-          default: {
-            http: readonly string[]
-          }
-        }
-      }
+      chain: AztecChain
       gatewayAddress: `0x${string}`
     }
 
@@ -155,4 +157,9 @@ export interface BridgeConfigs {
   evmPrivateKey?: Hex
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   evmProvider?: any
+  chainsConfig?: Record<string, InternalChain>
+  forwarderAddress?: Hex
+  aztecRollupContractL1Address?: Hex
+  opStackAnchorRegistryAddress?: Hex
+  forwarderChainId?: number
 }

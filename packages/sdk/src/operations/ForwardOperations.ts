@@ -6,16 +6,11 @@ import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { hexToBuffer } from "@aztec/foundation/string"
 
 import {
-  chainsConfig,
   AZTEC_VERSION,
-  aztecRollupContractL1Addresses,
-  forwarderAddresses,
   L2_GATEWAY_FILLED_ORDERS_SLOT,
   L2_GATEWAY_REFUNDED_ORDERS_SLOT,
-  opStackAnchorRegistryAddresses,
   REFUND_ORDER_TYPE,
   SETTLE_ORDER_TYPE,
-  FORWARDER_CHAIN,
 } from "../constants"
 import { AztecGateway7683Contract } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import rollupAbi from "../utils/abi/rollup"
@@ -28,11 +23,16 @@ import { BridgeContext } from "../context/BridgeContext"
 export class ForwardOperations {
   constructor(private context: BridgeContext) {}
 
+  private getAztecChainId(): number {
+    return this.context.getAztecChainId()
+  }
+
   async forwardRefundOrder(details: ForwardDetails): Promise<Hex> {
     const { chainIdIn, chainIdOut } = details
-    if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdOut === aztecChainId) {
       return this.forwardToL2({ ...details, type: "forwardRefundToL2" })
-    } else if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdIn === aztecChainId) {
       return this.forwardToAztec({ ...details, type: "forwardRefundToAztec" })
     }
     throw new Error("Neither chain is Aztec")
@@ -40,9 +40,10 @@ export class ForwardOperations {
 
   async forwardSettleOrder(details: ForwardDetails): Promise<Hex> {
     const { chainIdIn, chainIdOut } = details
-    if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdOut === aztecChainId) {
       return this.forwardToL2({ ...details, type: "forwardSettleToL2" })
-    } else if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdIn === aztecChainId) {
       return this.forwardToAztec({ ...details, type: "forwardSettleToAztec" })
     }
     throw new Error("Neither chain is Aztec")
@@ -50,12 +51,13 @@ export class ForwardOperations {
 
   async finalizeForwardRefundOrder(details: ForwardDetails): Promise<Hex> {
     const { chainIdIn, chainIdOut } = details
-    if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdOut === aztecChainId) {
       return this.finalizeForwardToL2({
         ...details,
         type: "forwardRefundToL2",
       })
-    } else if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdIn === aztecChainId) {
       return this.finalizeForwardRefundOrderToAztec(details)
     }
     throw new Error("Neither chain is Aztec")
@@ -63,12 +65,13 @@ export class ForwardOperations {
 
   async finalizeForwardSettleOrder(details: ForwardDetails): Promise<Hex> {
     const { chainIdIn, chainIdOut } = details
-    if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdOut === aztecChainId) {
       return this.finalizeForwardToL2({
         ...details,
         type: "forwardSettleToL2",
       })
-    } else if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdIn === aztecChainId) {
       return this.finalizeForwardSettleOrderToAztec(details)
     }
     throw new Error("Neither chain is Aztec")
@@ -79,8 +82,8 @@ export class ForwardOperations {
     if (!chainIdForwarder) throw new Error("You must specify a forwarder chain")
     const { gatewayOut } = this.context.getGatewaysByChainIds(chainIdIn, chainIdOut)
 
-    const rollupAddress = aztecRollupContractL1Addresses[FORWARDER_CHAIN.id]
-    const forwarderAddress = forwarderAddresses[FORWARDER_CHAIN.id]
+    const rollupAddress = this.context.aztecRollupContractL1Address
+    const forwarderAddress = this.context.forwarderAddress
     if (!rollupAddress || !forwarderAddress) throw new Error("Forwarder chain not supported")
 
     const message =
@@ -88,13 +91,14 @@ export class ForwardOperations {
         ? [hexToBuffer(REFUND_ORDER_TYPE), hexToBuffer(orderId)]
         : [hexToBuffer(SETTLE_ORDER_TYPE), hexToBuffer(orderId), hexToBuffer(padHex(fillerData!))]
     const messageHash = sha256ToField(message)
+    const forwarderChain = this.context.getForwarderChain()
 
     const l2ToL1MessageHash = computeL2ToL1MessageHash({
       l2Sender: AztecAddress.fromString(gatewayOut),
       l1Recipient: EthAddress.fromString(forwarderAddress),
       content: Fr.fromString(messageHash.toString()),
       rollupVersion: Fr.fromString(AZTEC_VERSION.toString()),
-      chainId: Fr.fromString(FORWARDER_CHAIN.id.toString()),
+      chainId: Fr.fromString(forwarderChain.id.toString()),
     })
 
     await this.context.maybeRegisterAztecGateway()
@@ -112,7 +116,7 @@ export class ForwardOperations {
     if (aztecMessageBlockNumber === 0n)
       throw new Error(`Order ${type === "forwardRefundToL2" ? "refund" : "settlement"} block number not found`)
     const aztecProvenBlockNumber = (await createPublicClient({
-      chain: FORWARDER_CHAIN,
+      chain: forwarderChain,
       transport: http(),
     }).readContract({
       address: rollupAddress,
@@ -169,21 +173,22 @@ export class ForwardOperations {
     if (!originData || !fillerData || !fillTransactionHash) {
       throw new Error("You must specify originData, fillerData and fillTransactionHash")
     }
-    if (chainIdForwarder !== FORWARDER_CHAIN.id) {
-      throw new Error(`chainForwarder must be ${FORWARDER_CHAIN.id}`)
+    const forwarderChain = this.context.getForwarderChain()
+    if (chainIdForwarder !== forwarderChain.id) {
+      throw new Error(`chainForwarder must be ${forwarderChain.id}`)
     }
     const internalChainOut = this.context.getChainByChainId(chainIdOut)
     if (internalChainOut.type !== "EVM") throw new Error("chainOut must be an EVM chain")
     const chainOut = internalChainOut.chain
     const { gatewayOut } = this.context.getGatewaysByChainIds(chainIdIn, chainIdOut)
 
-    const forwarderAddress = forwarderAddresses[FORWARDER_CHAIN.id]
+    const forwarderAddress = this.context.forwarderAddress
     if (!forwarderAddress) throw new Error("Forwarder chain not supported")
-    const opStackAnchorRegistryAddress = opStackAnchorRegistryAddresses[chainIdForwarder]
+    const opStackAnchorRegistryAddress = this.context.opStackAnchorRegistryAddress
     if (!opStackAnchorRegistryAddress) throw new Error("Invalid chainForwarder")
 
     const [_, l2EvmAnchorRootblockNumber] = (await createPublicClient({
-      chain: FORWARDER_CHAIN,
+      chain: forwarderChain,
       transport: http(),
     }).readContract({
       abi: anchorRegistryAbi,
@@ -222,27 +227,28 @@ export class ForwardOperations {
       storageProof: proof.storageProof[0]!.proof,
     }
 
-    const { walletClient, address } = await this.context.getEvmWalletClientAndAddress(FORWARDER_CHAIN)
+    const { walletClient, address } = await this.context.getEvmWalletClientAndAddress(forwarderChain)
     return await walletClient.writeContract({
       abi: forwarderAbi,
       account: this.context.evmPrivateKey ? walletClient.account! : address,
       address: forwarderAddress,
       args: [orderId, originData, fillerData, accountProofParameters],
-      chain: FORWARDER_CHAIN,
+      chain: forwarderChain,
       functionName: type === "forwardSettleToAztec" ? "forwardSettleToAztec" : "forwardRefundToAztec",
     })
   }
 
   private async finalizeForwardToL2(details: ForwardDetailsInternal): Promise<Hex> {
     const { chainIdForwarder, chainIdIn, chainIdOut, fillerData, orderId, type } = details
-    if (chainIdForwarder !== FORWARDER_CHAIN.id) {
-      throw new Error(`chainForwarder must be ${FORWARDER_CHAIN.id}`)
+    const forwarderChain = this.context.getForwarderChain()
+    if (chainIdForwarder !== forwarderChain.id) {
+      throw new Error(`chainForwarder must be ${forwarderChain.id}`)
     }
     const { chainIn, chainOut: internalChainOut } = this.context.getChainInAndOutByChainIds(chainIdIn, chainIdOut)
     if (internalChainOut.type !== "EVM") throw new Error("chainOut must be an EVM chain")
     const chainOut = internalChainOut.chain
     const { gatewayIn } = this.context.getGatewaysByChainIds(chainIdIn, chainIdOut)
-    const forwarderAddress = forwarderAddresses[FORWARDER_CHAIN.id]
+    const forwarderAddress = this.context.forwarderAddress
     if (!forwarderAddress) throw new Error("Forwarder chain not supported")
 
     const message =

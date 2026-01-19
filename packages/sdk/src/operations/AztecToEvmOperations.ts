@@ -17,7 +17,6 @@ import {
   setPublicAuthWit,
 } from "../utils"
 import {
-  chainsConfig,
   ORDER_DATA_TYPE,
   PRIVATE_ORDER,
   PRIVATE_ORDER_WITH_HOOK,
@@ -117,9 +116,9 @@ export class AztecToEvmOperations {
 
       const waitForReceipt = async (txHash: string): Promise<TxReceipt> => {
         while (true) {
-          const receipt = await createAztecNodeClient(
-            chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0],
-          ).getTxReceipt(TxHash.fromString(txHash))
+          const receipt = await createAztecNodeClient(this.context.getAztecRpcUrl()).getTxReceipt(
+            TxHash.fromString(txHash),
+          )
           if (receipt.status === "success") return receipt
           if (receipt.status === "pending") {
             await sleep(5000)
@@ -132,9 +131,9 @@ export class AztecToEvmOperations {
     } else {
       const wallet = await this.context.getAztecWallet()
       const account = await this.context.getAztecAccount()
-      const tokenInstance = await createAztecNodeClient(
-        chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0],
-      ).getContract(AztecAddress.fromString(tokenIn))
+      const tokenInstance = await createAztecNodeClient(this.context.getAztecRpcUrl()).getContract(
+        AztecAddress.fromString(tokenIn),
+      )
       if (!tokenInstance) {
         throw new Error(`Token contract instance not found for address ${tokenIn}`)
       }
@@ -214,7 +213,7 @@ export class AztecToEvmOperations {
 
   async fillOrder(details: FillOrderDetails): Promise<Hex> {
     const { orderId, orderData } = details
-    const internalChainOut = Object.values(chainsConfig).find(
+    const internalChainOut = Object.values(this.context.chainsConfig).find(
       (internalChain: InternalChain) => internalChain.chain.id === orderData.destinationDomain,
     )
     if (!internalChainOut) throw new Error("ChainOut not supported")
@@ -418,8 +417,8 @@ export class AztecToEvmOperations {
   }
 
   private async getAztecOpenLogByOrderId(orderId: Hex): Promise<ResolvedOrder | undefined> {
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
-    const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
+    const gateway = this.context.getAztecGatewayAddress()
+    const { logs } = await createAztecNodeClient(this.context.getAztecRpcUrl()).getPublicLogs({
       contractAddress: AztecAddress.fromString(gateway),
     })
     const parsedOpenLogs = getResolvedOrderByAztecLogs(logs)

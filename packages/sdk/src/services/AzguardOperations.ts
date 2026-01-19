@@ -8,17 +8,31 @@ import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifact
 import { Hex } from "viem"
 import { AztecGateway7683ContractArtifact } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import { getAztecAddressFromAzguardAccount, hexToUintArray, OrderDataEncoder } from "../utils"
-import { chainsConfig, ORDER_DATA_TYPE, PRIVATE_SENDER } from "../constants"
+import { defaultChainsConfig, ORDER_DATA_TYPE, PRIVATE_SENDER } from "../constants"
 import type { AztecOperations } from "./AztecOperations"
-import type { FillOrderDetails, OrderData } from "../types"
+import type { FillOrderDetails, InternalChain, OrderData } from "../types"
 
 export class AzguardOperations {
   azguardClient: AzguardClient
   aztecOperations: AztecOperations
+  chainsConfig: Record<string, InternalChain>
 
-  constructor(azguardClient: AzguardClient, aztecOperations: AztecOperations) {
+  constructor(
+    azguardClient: AzguardClient,
+    aztecOperations: AztecOperations,
+    chainsConfig: Record<string, InternalChain> = defaultChainsConfig,
+  ) {
     this.azguardClient = azguardClient
     this.aztecOperations = aztecOperations
+    this.chainsConfig = chainsConfig
+  }
+
+  private getAztecGatewayAddress(): Hex {
+    return this.chainsConfig.aztecDevnet.gatewayAddress
+  }
+
+  private getAztecChainId(): number {
+    return this.chainsConfig.aztecDevnet.chain.id
   }
 
   /**
@@ -34,11 +48,12 @@ export class AzguardOperations {
    * Register the Aztec gateway contract with Azguard
    */
   async registerAztecGateway(): Promise<void> {
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
+    const gateway = this.getAztecGatewayAddress()
+    const chainId = this.getAztecChainId()
     await this.azguardClient.execute([
       {
         kind: "register_contract",
-        chain: `aztec:11155111`,
+        chain: `aztec:${chainId}`,
         address: gateway,
         artifact: AztecGateway7683ContractArtifact,
       },
@@ -49,7 +64,7 @@ export class AzguardOperations {
    * Claim a private order using Azguard
    */
   async claimPrivateOrder(orderId: Hex, secret: Hex, originData: Hex, fillerData: Hex): Promise<Hex> {
-    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
+    const gatewayOut = this.getAztecGatewayAddress()
     const selectedAccount = this.getSelectedAccount()
 
     const [response] = await this.azguardClient.execute([
@@ -76,8 +91,8 @@ export class AzguardOperations {
    */
   async fillEvmToAztecOrder(details: FillOrderDetails, isPrivate: boolean): Promise<Hex> {
     const { orderId, orderData } = details
-    const chainOut = chainsConfig.aztecDevnet.chain
-    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
+    const gatewayOut = this.getAztecGatewayAddress()
+    const chainId = this.getAztecChainId()
     const selectedAccount = this.getSelectedAccount()
     const fillerData = getAztecAddressFromAzguardAccount(selectedAccount)
     const orderDataEncoder = new OrderDataEncoder(orderData)
@@ -85,7 +100,7 @@ export class AzguardOperations {
     const response = await this.azguardClient.execute([
       {
         kind: "register_contract",
-        chain: `aztec:11155111`,
+        chain: `aztec:${chainId}`,
         address: orderData.outputToken,
         artifact: TokenContractArtifact,
       },
@@ -142,6 +157,7 @@ export class AzguardOperations {
     isPrivate: boolean,
   ): Promise<TxReceipt> {
     const selectedAccount = this.getSelectedAccount()
+    const chainId = this.getAztecChainId()
     const orderDataEncoder = new OrderDataEncoder({
       ...orderData,
       sender: isPrivate ? PRIVATE_SENDER : getAztecAddressFromAzguardAccount(selectedAccount),
@@ -150,7 +166,7 @@ export class AzguardOperations {
     const response = await this.azguardClient.execute([
       {
         kind: "register_contract",
-        chain: `aztec:11155111`,
+        chain: `aztec:${chainId}`,
         address: tokenIn,
         artifact: TokenContractArtifact,
       },
@@ -234,7 +250,7 @@ export class AzguardOperations {
    * Refund an EVM to Aztec order using Azguard
    */
   async refundEvmToAztecOrder(orderId: Hex, originData: Hex): Promise<Hex> {
-    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
+    const gatewayOut = this.getAztecGatewayAddress()
     const selectedAccount = this.getSelectedAccount()
 
     const [response] = await this.azguardClient.execute([

@@ -17,7 +17,6 @@ import {
   setPublicAuthWit,
 } from "../utils"
 import {
-  chainsConfig,
   FILLED,
   FILLED_PRIVATELY,
   OPENED,
@@ -175,7 +174,7 @@ export class EvmToAztecOperations {
 
   async fillOrder(details: FillOrderDetails): Promise<Hex> {
     const { orderId, orderData } = details
-    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
+    const gatewayOut = this.context.getAztecGatewayAddress()
     const orderType = orderData.orderType
     const isPrivate = orderType === PRIVATE_ORDER || orderType === PRIVATE_ORDER_WITH_HOOK
     const orderDataEncoder = new OrderDataEncoder(orderData)
@@ -234,9 +233,9 @@ export class EvmToAztecOperations {
     const account = await this.context.getAztecAccount()
     const fillerData = account.getAddress().toString()
 
-    const tokenInstance = await createAztecNodeClient(
-      chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0],
-    ).getContract(AztecAddress.fromString(orderData.outputToken))
+    const tokenInstance = await createAztecNodeClient(this.context.getAztecRpcUrl()).getContract(
+      AztecAddress.fromString(orderData.outputToken),
+    )
     if (!tokenInstance) {
       throw new Error(`Token contract instance not found for address ${orderData.outputToken}`)
     }
@@ -402,7 +401,7 @@ export class EvmToAztecOperations {
   }
 
   async claimEvmToAztecPrivateOrder(orderId: Hex, secret: Hex): Promise<Hex> {
-    const gatewayOut = chainsConfig.aztecDevnet.gatewayAddress
+    const gatewayOut = this.context.getAztecGatewayAddress()
     const log = await this.context.getAztecFilledLogByOrderId(orderId)
     if (!log) throw new Error(`Log not found for the specified order id ${orderId}`)
 
@@ -439,9 +438,7 @@ export class EvmToAztecOperations {
     // Register token contract before claiming (for non-Azguard wallets)
     const wallet = await this.context.getAztecWallet()
     const tokenAddress = AztecAddress.fromString(decodedOrder.outputToken)
-    const tokenInstance = await createAztecNodeClient(
-      chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0],
-    ).getContract(tokenAddress)
+    const tokenInstance = await createAztecNodeClient(this.context.getAztecRpcUrl()).getContract(tokenAddress)
 
     if (!tokenInstance) {
       throw new Error(`Token contract instance not found for address ${tokenAddress.toString()}`)
