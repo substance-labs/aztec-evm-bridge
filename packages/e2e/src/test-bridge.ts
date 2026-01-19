@@ -8,8 +8,6 @@ import { loadJsonFile, loadEnvVars, type DeploymentAddresses, type TokenAddresse
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-
-// Load .env from project root
 const projectRoot = resolve(__dirname, "..", "..", "..")
 config({ path: resolve(projectRoot, ".env") })
 
@@ -85,14 +83,13 @@ function loadConfig(): TestConfig {
 
 function runScript(scriptPath: string, args: string[]): Promise<void> {
   return new Promise((resolvePromise, reject) => {
-    // Resolve project root from this file's location
     const projectRoot = resolve(__dirname, "..", "..", "..")
     const scriptDir = resolve(projectRoot, "packages", "aztec", "aztec_gateway_7683")
     const scriptFullPath = resolve(scriptDir, "scripts", scriptPath)
 
     const child = spawn("node", ["--loader", "ts-node/esm", scriptFullPath, ...args], {
       stdio: "inherit",
-      cwd: scriptDir, // Run from the script's package directory
+      cwd: scriptDir,
       env: {
         ...process.env,
         NODE_NO_WARNINGS: "1",
@@ -115,7 +112,6 @@ async function main() {
   try {
     const config = loadConfig()
 
-    // Deploy Filler Account
     logger.info("")
     logger.info("=== Deploying Filler Account (if not already deployed) ===")
     await runScript("deploy-account.ts", [
@@ -124,7 +120,6 @@ async function main() {
       config.env.aztecRpcUrl,
     ])
 
-    // Deploy E2E Test Account
     logger.info("")
     logger.info("=== Deploying E2E Test Account (if not already deployed) ===")
     await runScript("deploy-account.ts", [
@@ -133,7 +128,6 @@ async function main() {
       config.env.aztecRpcUrl,
     ])
 
-    // Ensure Filler Account has sufficient balance (only mints if needed)
     logger.info("")
     logger.info("=== Ensuring Filler Account has sufficient balance ===")
     await runScript("ensure-balance.ts", [
@@ -141,12 +135,11 @@ async function main() {
       config.env.aztecSalt,
       config.tokens.aztecTokenAddress,
       config.env.aztecFillerAddress,
-      "1000000000000000000", // min private balance
-      "1000000000000000000", // min public balance
+      "1000000000000000000",
+      "1000000000000000000",
       config.env.aztecRpcUrl,
     ])
 
-    // Ensure E2E Test Account has sufficient balance (only mints if needed)
     logger.info("")
     logger.info("=== Ensuring E2E Test Account has sufficient balance ===")
     await runScript("ensure-balance.ts", [
@@ -154,12 +147,11 @@ async function main() {
       config.env.aztecSalt,
       config.tokens.aztecTokenAddress,
       config.env.aztecE2ETestAddress,
-      "1000000000000000000", // min private balance
-      "1000000000000000000", // min public balance
+      "1000000000000000000",
+      "1000000000000000000",
       config.env.aztecRpcUrl,
     ])
 
-    // Test 1: Aztec to EVM (PUBLIC)
     logger.info("")
     logger.info("=== Test 1/4: Aztec to EVM (PUBLIC) ===")
     await runScript("e2e/aztec-to-evm.ts", [
@@ -171,12 +163,11 @@ async function main() {
       config.tokens.aztecTokenAddress,
       config.tokens.l2EvmTokenAddress,
       config.env.evmE2ETestAddress,
-      "0", // orderType: public
+      "0",
       config.env.aztecRpcUrl,
     ])
     logger.info("✅ Aztec to EVM (PUBLIC) test passed!")
 
-    // Test 2: Aztec to EVM (PRIVATE)
     logger.info("")
     logger.info("=== Test 2/4: Aztec to EVM (PRIVATE) ===")
     await runScript("e2e/aztec-to-evm.ts", [
@@ -188,12 +179,11 @@ async function main() {
       config.tokens.aztecTokenAddress,
       config.tokens.l2EvmTokenAddress,
       config.env.evmE2ETestAddress,
-      "1", // orderType: private
+      "1",
       config.env.aztecRpcUrl,
     ])
     logger.info("✅ Aztec to EVM (PRIVATE) test passed!")
 
-    // Test 3: EVM to Aztec (PUBLIC)
     logger.info("")
     logger.info("=== Test 3/4: EVM to Aztec (PUBLIC) ===")
     await runScript("e2e/evm-to-aztec.ts", [
@@ -206,14 +196,13 @@ async function main() {
       config.tokens.aztecTokenAddress,
       config.tokens.l2EvmTokenAddress,
       config.env.aztecE2ETestAddress,
-      "0", // orderType: public
+      "0",
       "",
       "",
       config.env.aztecRpcUrl,
     ])
     logger.info("✅ EVM to Aztec (PUBLIC) test passed!")
 
-    // Test 4: EVM to Aztec (PRIVATE)
     logger.info("")
     logger.info("=== Test 4/4: EVM to Aztec (PRIVATE) ===")
     await runScript("e2e/evm-to-aztec.ts", [
@@ -226,7 +215,7 @@ async function main() {
       config.tokens.aztecTokenAddress,
       config.tokens.l2EvmTokenAddress,
       config.env.aztecE2ETestAddress,
-      "1", // orderType: private
+      "1",
       "",
       "",
       config.env.aztecRpcUrl,

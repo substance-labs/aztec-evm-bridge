@@ -42,6 +42,7 @@ yarn test:bridge ../../deployments/deploy_2026-01-16_23-52-13.json ../../deploym
 ## Next steps
 
 The bash scripts in `scripts/` directory can be gradually migrated:
+
 - `deploy_bridge.sh` → `packages/e2e/src/deploy-bridge.ts`
 - `deploy_test_tokens.sh` → `packages/e2e/src/deploy-tokens.ts`
 - `mint_aztec_token.sh` → `packages/e2e/src/mint-aztec-tokens.ts`

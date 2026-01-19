@@ -17,7 +17,6 @@ export interface TokenAddresses {
 }
 
 export function loadJsonFile<T>(filePath: string): T {
-  // If path is relative, resolve from project root
   const absolutePath = filePath.startsWith("/") ? filePath : resolve(projectRoot, filePath)
   const content = readFileSync(absolutePath, "utf-8")
   return JSON.parse(content) as T
