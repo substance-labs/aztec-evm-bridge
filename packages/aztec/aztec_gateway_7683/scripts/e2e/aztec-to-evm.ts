@@ -28,13 +28,12 @@ const [
   aztecTokenAddress,
   l2EvmTokenAddress,
   recipientAddress,
-  orderTypeArg, // 0 = public, 1 = private
+  orderTypeArg,
   rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 const isPrivateOrder = orderTypeArg === "1"
 
-// NOTE: make sure that the filler is running
 async function main(): Promise<void> {
   const logger = createLogger("e2e:aztec-to-evm")
 
@@ -44,7 +43,6 @@ async function main(): Promise<void> {
     transport: http(),
   })
 
-  // Get initial EVM recipient balance
   const initialEvmBalance = await evmClient.readContract({
     address: l2EvmTokenAddress as `0x${string}`,
     abi: erc20Abi,
@@ -83,8 +81,6 @@ async function main(): Promise<void> {
   const fillDeadline = 2 ** 32 - 1
   const amount = 100n
   const nonce = Fr.random()
-  // For public orders, sender must be the actual account address
-  // For private orders, sender is 0x00 (computed from secret)
   const orderData = new OrderData({
     sender: isPrivateOrder ? padHex("0x00") : account.getAddress().toString(),
     recipient: padHex(recipientAddress as `0x${string}`),
@@ -106,7 +102,6 @@ async function main(): Promise<void> {
   if (isPrivateOrder) {
     logger.info("opening private order ...")
 
-    // Create auth witness for private transfer
     const witness = await wallet.createAuthWit(account.getAddress(), {
       caller: gateway.address,
       action: token.methods.transfer_private_to_public(account.getAddress(), gateway.address, amount, nonce),
@@ -131,8 +126,6 @@ async function main(): Promise<void> {
   } else {
     logger.info("opening public order ...")
 
-    // For public orders, we need to set a public auth witness first
-    // This allows the gateway to call transfer_public_to_public on our behalf
     const authWitAction = token
       .withWallet(wallet)
       .methods.transfer_public_to_public(account.getAddress(), gateway.address, amount, nonce)
@@ -200,7 +193,6 @@ async function main(): Promise<void> {
     if (orderStatus !== padHex("0x00")) {
       logger.info("order filled successfully!")
 
-      // Verify recipient received the tokens
       const finalEvmBalance = await evmClient.readContract({
         address: l2EvmTokenAddress as `0x${string}`,
         abi: erc20Abi,

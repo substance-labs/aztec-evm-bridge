@@ -41,7 +41,6 @@ const main = async () => {
   const recipient = AztecAddress.fromString(recipientAddress)
   const minterAddress = minterAccount.getAddress()
 
-  // Check initial public balance (use minter for simulation since recipient may not be registered)
   logger.info("Checking initial balances...")
   const initialPublicBalance = await token.methods.balance_of_public(recipient).simulate({ from: minterAddress })
   logger.info(`Initial public balance: ${initialPublicBalance.toString()}`)
@@ -74,7 +73,6 @@ const main = async () => {
     logger.info(`✅ Minted ${amountPublic} tokens to public balance`)
   }
 
-  // Check final public balance (private balance can only be checked by the recipient's PXE)
   logger.info("Checking final balances...")
   const finalPublicBalance = await token.methods.balance_of_public(recipient).simulate({ from: minterAddress })
   const finalPrivateBalance = await token.methods.balance_of_private(recipient).simulate({ from: recipient })

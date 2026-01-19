@@ -30,7 +30,6 @@ async function main(): Promise<void> {
 
   logger.info(`Account address: ${address.toString()}`)
 
-  // Check if account is already deployed using getContractMetadata
   const metadata = await wallet.getContractMetadata(address)
   if (metadata.isContractInitialized) {
     logger.info(`Account is already deployed!`)
@@ -43,7 +42,6 @@ async function main(): Promise<void> {
     await deployMethod.send({ from: AztecAddress.ZERO, fee: { paymentMethod } }).wait()
     logger.info(`Account deployed successfully!`)
   } catch (error: any) {
-    // If the error is "Existing nullifier", the account was already deployed
     if (error?.message?.includes("Existing nullifier") || error?.cause?.message?.includes("Existing nullifier")) {
       logger.info(`Account was already deployed (nullifier exists)!`)
       return

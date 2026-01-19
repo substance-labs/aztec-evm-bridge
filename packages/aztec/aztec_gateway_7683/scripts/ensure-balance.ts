@@ -41,7 +41,6 @@ const main = async () => {
   logger.info(`Target address: ${recipientAddress}`)
   logger.info(`Token address: ${tokenAddress}`)
 
-  // Register the token contract
   const aztecNode = createAztecNodeClient(rpcUrl)
   const tokenInstance = await aztecNode.getContract(tokenAddr)
   if (!tokenInstance) {
@@ -51,7 +50,6 @@ const main = async () => {
 
   const token = await TokenContract.at(tokenAddr, wallet)
 
-  // Check current balances
   logger.info(`Checking current balances...`)
   const currentPublicBalance = await token.methods
     .balance_of_public(targetAddress)
@@ -66,7 +64,6 @@ const main = async () => {
   const minPrivate = BigInt(minPrivateBalance)
   const minPublic = BigInt(minPublicBalance)
 
-  // Calculate how much to mint (if any)
   const privateDeficit = minPrivate > BigInt(currentPrivateBalance) ? minPrivate - BigInt(currentPrivateBalance) : 0n
   const publicDeficit = minPublic > BigInt(currentPublicBalance) ? minPublic - BigInt(currentPublicBalance) : 0n
 
@@ -78,7 +75,6 @@ const main = async () => {
   logger.info(`Required minimum: private=${minPrivate}, public=${minPublic}`)
   logger.info(`Deficit: private=${privateDeficit}, public=${publicDeficit}`)
 
-  // Mint private tokens if needed
   if (privateDeficit > 0n) {
     logger.info(`Minting ${privateDeficit} tokens to private balance...`)
     await token.methods
@@ -93,7 +89,6 @@ const main = async () => {
     logger.info(`✅ Minted ${privateDeficit} tokens to private balance`)
   }
 
-  // Mint public tokens if needed
   if (publicDeficit > 0n) {
     logger.info(`Minting ${publicDeficit} tokens to public balance...`)
     await token.methods

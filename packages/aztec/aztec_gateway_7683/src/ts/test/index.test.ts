@@ -196,7 +196,7 @@ describe("AztecGateway7683", () => {
     const publicClientGetAddresses = await publicClient.getAddresses()
     const rollup = new RollupContract(publicClient, l1Contracts.rollupAddress)
     version = await rollup.getVersion()
-    const [l1Account] = await publicClient.getAddresses()
+    await publicClient.getAddresses()
     // Use Sender as forwarder/portal so L1->L2 message matches consume_l1_to_l2_message expectations.
     const setupResult = await setup(node, EthAddress.fromString(publicClientGetAddresses[0] as string))
     userWalletAndAccount = { wallet: setupResult.userWallet, accountAddress: setupResult.userAccountAddress }
@@ -456,6 +456,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -648,6 +649,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -739,6 +741,7 @@ describe("AztecGateway7683", () => {
       toBlock: fromBlock + 2,
       contractAddress: aztecGateway.address,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )

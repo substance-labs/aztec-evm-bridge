@@ -34,15 +34,14 @@ const [
   aztecTokenAddress,
   l2EvmTokenAddress,
   recipientAddress,
-  orderTypeArg, // 0 = public, 1 = private
-  recipientSecretKey, // Secret key for recipient account (needed for private claims)
-  recipientSalt, // Salt for recipient account
+  orderTypeArg,
+  recipientSecretKey,
+  recipientSalt,
   rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 const isPrivateOrder = orderTypeArg === "1"
 
-// NOTE: make sure that the filler is running
 async function main(): Promise<void> {
   const logger = createLogger("e2e:evm-to-aztec")
 
@@ -72,7 +71,6 @@ async function main(): Promise<void> {
   const secretHash = await poseidon2HashWithSeparator([secret], GeneratorIndex.SECRET_HASH)
   const nonce = Fr.random()
 
-  // For private orders, use secretHash as recipient; for public orders, use the recipient address directly
   const orderRecipient = isPrivateOrder ? secretHash.toString() : recipientAddress
 
   const orderData = new OrderData({
@@ -151,7 +149,6 @@ async function main(): Promise<void> {
     testWallet: wallet,
   })
 
-  // Register contracts with the wallet
   await wallet.registerContract(
     (await node.getContract(AztecAddress.fromString(aztecGateway7683Address))) as ContractInstanceWithAddress,
     AztecGateway7683ContractArtifact,
@@ -162,7 +159,6 @@ async function main(): Promise<void> {
     TokenContractArtifact,
   )
 
-  // Register senders so the PXE can discover notes created by other contracts
   await wallet.registerSender(AztecAddress.fromString(aztecGateway7683Address))
   await wallet.registerSender(AztecAddress.fromString(aztecTokenAddress))
   await wallet.registerSender(account.getAddress())
@@ -175,14 +171,12 @@ async function main(): Promise<void> {
 
   const token = Contract.at(AztecAddress.fromString(aztecTokenAddress), TokenContractArtifact, wallet)
 
-  // Get initial Aztec recipient balance (public for public orders, we check after claim for private)
   const aztecRecipientAddress = AztecAddress.fromString(recipientAddress)
   const initialAztecBalance = await token.methods
     .balance_of_public(aztecRecipientAddress)
     .simulate({ from: account.getAddress(), skipTxValidation: true })
   logger.info(`Initial Aztec recipient public balance: ${initialAztecBalance}`)
 
-  // For private orders, we'll check initial balance just before claiming
   let initialPrivateBalance = 0n
 
   const initial3PublicBalance = await token.methods
@@ -201,12 +195,9 @@ async function main(): Promise<void> {
       .simulate({ from: account.getAddress(), skipTxValidation: true })
     logger.info(`order ${orderId.toString()} status: ${status}`)
 
-    // Status 2 = FILLED (public), Status 3 = FILLED_PRIVATELY
     if (!isPrivateOrder && status === 2n) {
-      // Public order - filled, tokens sent directly to recipient's public balance
       logger.info(`order ${orderId.toString()} filled successfully (public)!`)
 
-      // Verify recipient received the tokens in their public balance
       const finalAztecBalance = await token.methods
         .balance_of_public(aztecRecipientAddress)
         .simulate({ from: account.getAddress(), skipTxValidation: true })
@@ -219,15 +210,12 @@ async function main(): Promise<void> {
       logger.info(`✅ Balance verified: recipient received ${balanceIncrease} tokens (public)`)
       break
     } else if (isPrivateOrder && status === 3n) {
-      // Private order - need to claim
       let log
       while (true) {
         try {
           logger.info(`order ${orderId.toString()} filled successfully. claiming it ...`)
 
           await sleep(3000)
-          // TODO: understand why if i use fromBlock and toBlock i always receive the penultimante log.
-          // Basically i never receive the last one even if block numbers are up to date
           const { logs } = await node.getPublicLogs({
             contractAddress: AztecAddress.fromString(aztecGateway7683Address),
           })
@@ -237,7 +225,6 @@ async function main(): Promise<void> {
           const parsedLogs = logs
             .filter(({ log }) => log.fields && log.fields.length >= 13)
             .map(({ log }) => {
-              // Convert string fields to a format parseFilledLog expects
               const fields = log.fields.map((f: unknown) => (typeof f === "string" ? { toString: () => f } : f))
               return parseFilledLog(fields as Fr[])
             })
@@ -250,7 +237,6 @@ async function main(): Promise<void> {
         }
       }
 
-      // Wait for notes to be synced to the PXE - devnet can be slow
       logger.info("Waiting for notes to sync before claiming...")
       await sleep(15000)
 
@@ -264,19 +250,14 @@ async function main(): Promise<void> {
         .simulate({ from: account.getAddress(), skipTxValidation: true })
       logger.info(`After fill - Aztec gateway public balance: ${fill3PublicBalance}`)
 
-      // Use the filler account to claim the tokens
-      // The claim proves: 1) secret validation works, 2) tokens go to msg_sender
       const claimerAccount = account
       const claimerAddress = claimerAccount.getAddress()
 
-      // Get initial private balance for the claimer
       initialPrivateBalance = await token.methods
         .balance_of_private(claimerAddress)
         .simulate({ from: claimerAddress, skipTxValidation: true })
       logger.info(`Initial Aztec claimer private balance: ${initialPrivateBalance}`)
 
-      // For private orders, the caller of claim_private gets the tokens (sent to msg_sender)
-      // Anyone with the secret can call this and receive the tokens
       logger.info(`Claiming private order with account: ${claimerAddress.toString()}`)
       await gateway.methods
         .claim_private(
