@@ -747,6 +747,22 @@ describe("AztecGateway7683", () => {
     expect(orderData.encode()).toBe(parsedLog.originData)
     expect(fillerAddress.toString()).toBe(parsedLog.fillerData)
 
+    // Get user's private balance before claiming
+    const balancePre = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+
+    console.log("Claiming private order...")
+    console.log(hexToBytes(orderId.toString()))
+    console.log(orderId.toString())
+    console.log("-----")
+    console.log(hexToBytes(orderData.encode()))
+    console.log(orderData.encode())
+    console.log("-----")
+    console.log(hexToBytes(fillerAddress.toString()))
+    console.log(fillerAddress.toString())
+
     await aztecGateway
       .withWallet(userWallet)
       .methods.claim_private(
@@ -760,6 +776,13 @@ describe("AztecGateway7683", () => {
         fee: { paymentMethod },
       })
       .wait()
+
+    // Verify user received the tokens in their private balance
+    const balancePost = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+    expect(balancePost).toBe(balancePre + amountOut)
 
     const content = sha256ToField([
       Buffer.from(SETTLE_ORDER_TYPE.slice(2), "hex"),
