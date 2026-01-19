@@ -1,0 +1,336 @@
+name: Deploy Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'testnet'
+        type: choice
+        options:
+          - testnet
+          - mainnet
+      verify_contracts:
+        description: 'Verify contracts on block explorers'
+        required: false
+        default: true
+        type: boolean
+      deploy_test_tokens:
+        description: 'Deploy test tokens after bridge deployment'
+        required: false
+        default: true
+        type: boolean
+      run_e2e_tests:
+        description: 'Run E2E tests after deployment'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    outputs:
+      deployment_file: ${{ steps.get_files.outputs.deployment_file }}
+      tokens_file: ${{ steps.get_files.outputs.tokens_file }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install Aztec CLI
+        run: |
+          curl -s https://install.aztec.network | bash
+          export PATH="$PATH:/home/runner/.aztec/bin"
+          aztec-up 3.0.0-devnet.20251212
+          echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build Aztec contracts
+        run: |
+          cd packages/aztec/aztec_gateway_7683
+          yarn compile
+          yarn postprocess
+          yarn codegen
+
+      - name: Deploy Bridge Contracts
+        env:
+          # EVM deployer private key (for L1 and L2 EVM chains)
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          # Aztec deployer credentials
+          AZTEC_SECRET_KEY: ${{ secrets.AZTEC_DEPLOYER_SECRET_KEY }}
+          AZTEC_SALT: ${{ secrets.AZTEC_DEPLOYER_SALT }}
+          # RPC URLs
+          L1_RPC_URL: ${{ secrets.L1_RPC_URL }}
+          L2_RPC_URL: ${{ secrets.L2_RPC_URL }}
+          AZTEC_RPC_URL: ${{ secrets.AZTEC_RPC_URL }}
+          # Contract addresses (infrastructure)
+          PERMIT2: ${{ vars.PERMIT2 }}
+          AZTEC_INBOX: ${{ vars.AZTEC_INBOX }}
+          AZTEC_OUTBOX: ${{ vars.AZTEC_OUTBOX }}
+          L2_ANCHOR_STATE_REGISTRY: ${{ vars.L2_ANCHOR_STATE_REGISTRY }}
+          L2_CHAIN_ID: ${{ vars.L2_CHAIN_ID }}
+          # Optional: Existing Poseidon2 library to reuse
+          POSEIDON2: ${{ vars.POSEIDON2 }}
+          # Verification
+          VERIFY_CONTRACTS: ${{ github.event.inputs.verify_contracts }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: cd packages/deploy && yarn deploy:bridge
+
+      - name: Deploy Test Tokens
+        if: ${{ github.event.inputs.deploy_test_tokens == 'true' }}
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          AZTEC_SECRET_KEY: ${{ secrets.AZTEC_DEPLOYER_SECRET_KEY }}
+          AZTEC_SALT: ${{ secrets.AZTEC_DEPLOYER_SALT }}
+          L2_RPC_URL: ${{ secrets.L2_RPC_URL }}
+          AZTEC_RPC_URL: ${{ secrets.AZTEC_RPC_URL }}
+          EVM_E2E_TEST_ADDRESS: ${{ secrets.EVM_E2E_TEST_ADDRESS }}
+          EVM_FILLER_ADDRESS: ${{ secrets.EVM_FILLER_ADDRESS }}
+          AZTEC_E2E_TEST_ADDRESS: ${{ secrets.AZTEC_E2E_TEST_ADDRESS }}
+          AZTEC_FILLER_ADDRESS: ${{ secrets.AZTEC_FILLER_ADDRESS }}
+          VERIFY_CONTRACTS: ${{ github.event.inputs.verify_contracts }}
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: cd packages/deploy && yarn deploy:tokens
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ github.run_id }}
+          path: |
+            deployments/*.json
+          retention-days: 90
+
+      - name: Get deployment file names
+        id: get_files
+        run: |
+          DEPLOY_FILE=$(ls -t deployments/deploy_*.json | head -1)
+          TOKENS_FILE=$(ls -t deployments/tokens_deploy_*.json 2>/dev/null | head -1 || echo "")
+          echo "deployment_file=$DEPLOY_FILE" >> $GITHUB_OUTPUT
+          echo "tokens_file=$TOKENS_FILE" >> $GITHUB_OUTPUT
+          echo "Deployment file: $DEPLOY_FILE"
+          echo "Tokens file: $TOKENS_FILE"
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Contracts" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat deployments/deploy_*.json | tail -1 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  e2e-tests:
+    needs: deploy
+    if: ${{ github.event.inputs.run_e2e_tests == 'true' && github.event.inputs.deploy_test_tokens == 'true' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    outputs:
+      test_result: ${{ steps.run_tests.outputs.result }}
+      test_summary: ${{ steps.run_tests.outputs.summary }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install Aztec CLI
+        run: |
+          curl -s https://install.aztec.network | bash
+          export PATH="$PATH:/home/runner/.aztec/bin"
+          aztec-up 3.0.0-devnet.20251212
+          echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build Aztec contracts
+        run: |
+          cd packages/aztec/aztec_gateway_7683
+          yarn compile
+          yarn postprocess
+          yarn codegen
+
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-${{ github.run_id }}
+          path: deployments
+
+      - name: Run E2E Tests
+        id: run_tests
+        env:
+          # E2E test account credentials
+          AZTEC_E2E_TEST_SECRET_KEY: ${{ secrets.AZTEC_E2E_TEST_SECRET_KEY }}
+          AZTEC_E2E_TEST_SALT: ${{ secrets.AZTEC_E2E_TEST_SALT }}
+          AZTEC_E2E_TEST_ADDRESS: ${{ secrets.AZTEC_E2E_TEST_ADDRESS }}
+          EVM_E2E_TEST_PK: ${{ secrets.EVM_E2E_TEST_PK }}
+          EVM_E2E_TEST_ADDRESS: ${{ secrets.EVM_E2E_TEST_ADDRESS }}
+          # Minter account (for ensuring balances)
+          AZTEC_SECRET_KEY: ${{ secrets.AZTEC_DEPLOYER_SECRET_KEY }}
+          AZTEC_SALT: ${{ secrets.AZTEC_DEPLOYER_SALT }}
+          # Filler account
+          AZTEC_FILLER_SECRET_KEY: ${{ secrets.AZTEC_FILLER_SECRET_KEY }}
+          AZTEC_FILLER_SALT: ${{ secrets.AZTEC_FILLER_SALT }}
+          AZTEC_FILLER_ADDRESS: ${{ secrets.AZTEC_FILLER_ADDRESS }}
+          # RPC URLs
+          AZTEC_RPC_URL: ${{ secrets.AZTEC_RPC_URL }}
+          L2_RPC_URL: ${{ secrets.L2_RPC_URL }}
+          L2_CHAIN_ID: ${{ vars.L2_CHAIN_ID }}
+        run: |
+          set +e
+          DEPLOYMENT_FILE="${{ needs.deploy.outputs.deployment_file }}"
+          TOKENS_FILE="${{ needs.deploy.outputs.tokens_file }}"
+          
+          echo "Running E2E tests with:"
+          echo "  Deployment: $DEPLOYMENT_FILE"
+          echo "  Tokens: $TOKENS_FILE"
+          
+          # Run tests and capture output
+          cd packages/e2e
+          OUTPUT=$(NODE_NO_WARNINGS=1 node --loader ts-node/esm src/test-bridge.ts "../../$DEPLOYMENT_FILE" "../../$TOKENS_FILE" 2>&1)
+          EXIT_CODE=$?
+          
+          echo "$OUTPUT"
+          
+          # Save results
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "summary=All 4 E2E tests passed ✅" >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "summary=E2E tests failed ❌" >> $GITHUB_OUTPUT
+          fi
+          
+          # Create test results file
+          mkdir -p ../../test-results
+          cat > ../../test-results/e2e-results.json << EOF
+          {
+            "run_id": "${{ github.run_id }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "${{ github.event.inputs.environment }}",
+            "deployment_file": "$DEPLOYMENT_FILE",
+            "tokens_file": "$TOKENS_FILE",
+            "result": "$([ $EXIT_CODE -eq 0 ] && echo 'success' || echo 'failure')",
+            "exit_code": $EXIT_CODE
+          }
+          EOF
+          
+          exit $EXIT_CODE
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 90
+
+      - name: Create test summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Result:** ${{ steps.run_tests.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results/e2e-results.json ]; then
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat test-results/e2e-results.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  commit-results:
+    needs: [deploy, e2e-tests]
+    if: always() && github.event.inputs.run_e2e_tests == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-${{ github.run_id }}
+          path: deployments
+
+      - name: Download test results
+        if: needs.e2e-tests.result != 'skipped'
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-results-${{ github.run_id }}
+          path: test-results
+        continue-on-error: true
+
+      - name: Commit deployment and test results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add deployment files
+          git add deployments/*.json || true
+          
+          # Add test results if they exist
+          if [ -d test-results ]; then
+            mkdir -p test-results
+            git add test-results/*.json || true
+          fi
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            COMMIT_MSG="chore: deployment ${{ github.run_id }} (${{ github.event.inputs.environment }})"
+            if [ "${{ needs.e2e-tests.outputs.test_result }}" = "success" ]; then
+              COMMIT_MSG="$COMMIT_MSG - E2E tests passed ✅"
+            elif [ "${{ needs.e2e-tests.outputs.test_result }}" = "failure" ]; then
+              COMMIT_MSG="$COMMIT_MSG - E2E tests failed ❌"
+            fi
+            
+            git commit -m "$COMMIT_MSG"
+            git push
+            echo "Committed and pushed deployment results"
+          fi
+
+      - name: Create final summary
+        run: |
+          echo "## Final Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "**E2E Tests:** ${{ needs.e2e-tests.outputs.test_result == 'success' && '✅ Passed' || (needs.e2e-tests.outputs.test_result == 'failure' && '❌ Failed' || '⏭️ Skipped') }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Results committed:** Yes" >> $GITHUB_STEP_SUMMARY

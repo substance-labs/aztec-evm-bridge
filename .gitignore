@@ -4,7 +4,6 @@ node_modules/
 dist/
 .env
 logs/
-deployments/
 packages/evm/deployments/
 packages/evm/broadcast/
 packages/aztec/aztec_gateway_7683/deployments/
