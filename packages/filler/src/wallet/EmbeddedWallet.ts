@@ -37,10 +37,6 @@ const initPxe = async (storeName: string, aztecNode: AztecNode): Promise<PXE> =>
   const dataDirectory = "storePath"
   const storePath = path.join(dataDirectory, storeName)
 
-  // Note: We no longer delete the store on startup to preserve synced notes.
-  // Historical private notes cannot be rediscovered once the PXE loses them.
-  // If you need a fresh start, manually delete the storePath directory.
-
   const store = await createStore(storeName, {
     dataDirectory,
     dataStoreMapSizeKb: 1e7,
@@ -75,10 +71,7 @@ export class EmbeddedWallet extends BaseWallet {
       await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
     }
 
-    // Add filler account
     await wallet.createAccount()
-
-    // await wallet.registerSender(wallet.gatewayAddress);
     await wallet.registerContractWithoutInstance(wallet.gatewayAddress, AztecGateway7683ContractArtifact)
     logger.info(`[${storeName}] - Registered gateway contract at address ${config.gateway}`)
     for (const token of config.tokens) {
@@ -87,7 +80,6 @@ export class EmbeddedWallet extends BaseWallet {
       logger.info(`[${storeName}] - Registered token contract at address ${token.address}`)
     }
 
-    // Sync private state for all tokens to discover notes minted from other PXEs
     const fillerAddress = wallet.getAddress()
     logger.info(`[${storeName}] - Syncing private state for filler account ${fillerAddress.toString()}...`)
     for (const token of config.tokens) {
@@ -178,7 +170,6 @@ export class EmbeddedWallet extends BaseWallet {
   }
 
   private async createAccount(): Promise<AccountManager> {
-    // TODO: support more account types
     const secret = Fr.fromHexString(config.aztec.secretKey)
     const salt = Fr.fromHexString(config.aztec.salt)
     const signingKey = deriveSigningKey(secret)

@@ -5,7 +5,6 @@ import * as fs from "fs"
 import * as path from "path"
 import * as chains from "viem/chains"
 
-// Deployment JSON types
 interface DeploymentJson {
   Poseidon2?: { address: string; deployTx: string }
   L2Gateway7683?: { address: string; deployTx: string; configTxs?: string[] }
@@ -18,7 +17,6 @@ interface TokensDeploymentJson {
   AztecToken?: { address: string; deployTx: string }
 }
 
-// MongoDB configuration
 export interface MongoConfig {
   uri: string
   user?: string
@@ -27,7 +25,6 @@ export interface MongoConfig {
   dbName: string
 }
 
-// EVM-specific configuration
 export interface EvmConfig {
   privateKey: `0x${string}`
   forwarderRpcUrl: string
@@ -39,7 +36,6 @@ export interface EvmConfig {
   aztecRollupContractL1Address: `0x${string}`
 }
 
-// Aztec-specific configuration
 export interface AztecConfig {
   secretKey: string
   salt: string
@@ -48,7 +44,6 @@ export interface AztecConfig {
   isSandbox: boolean
 }
 
-// Find the latest deployment file matching a pattern
 function findLatestDeploymentFile(pattern: RegExp): string | null {
   const deploymentsDir = path.resolve(__dirname, "../../../deployments")
   if (!fs.existsSync(deploymentsDir)) {
@@ -65,12 +60,10 @@ function findLatestDeploymentFile(pattern: RegExp): string | null {
   return firstFile ? path.join(deploymentsDir, firstFile) : null
 }
 
-// Load deployment configuration from JSON files
 function loadDeploymentConfig(): { deployment: DeploymentJson | null; tokens: TokensDeploymentJson | null } {
   let deployment: DeploymentJson | null = null
   let tokens: TokensDeploymentJson | null = null
 
-  // Check for explicit file paths in env vars first
   const deploymentFile =
     process.env.DEPLOYMENT_JSON_PATH || findLatestDeploymentFile(/^deploy_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/)
   const tokensFile =
@@ -100,7 +93,6 @@ function loadDeploymentConfig(): { deployment: DeploymentJson | null; tokens: To
 
 const { deployment, tokens } = loadDeploymentConfig()
 
-// Helper function to get required config value or throw
 function getRequiredConfig(name: string, ...sources: (string | undefined)[]): string {
   for (const source of sources) {
     if (source) return source
@@ -151,7 +143,6 @@ export interface FillerConfig {
   l1Chain: Chain
 }
 
-// Get chain by ID from viem chains
 function getChainById(chainId: string): Chain {
   const chain = (Object.values(chains) as Chain[]).find(({ id }) => id.toString() === chainId)
   if (!chain) {

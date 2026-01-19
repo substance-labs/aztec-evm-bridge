@@ -18,7 +18,6 @@ import type { Log } from "viem"
 import { EmbeddedWallet } from "./wallet/EmbeddedWallet.js"
 
 const main = async () => {
-  // Log configuration on startup
   const evmChain = config.chains.baseSepolia
   const aztecChain = config.chains.aztec
   logger.info("=== Filler Configuration ===")
@@ -49,7 +48,6 @@ const main = async () => {
   }
   const db = mongoClient.db(config.mongo.dbName)
 
-  // TODO: add possibility to register senders
   const orderWallet = await EmbeddedWallet.create(config.chains.aztec as AztecChainConfig, "filler-order-service-pxe")
   const settlementWallet = await EmbeddedWallet.create(
     config.chains.aztec as AztecChainConfig,
@@ -72,7 +70,6 @@ const main = async () => {
     },
   })
 
-  // Log filler addresses
   const evmFillerAddress = evmMultiClient.getWalletClientByChain(l2EvmChain).account?.address
   const aztecFillerAddress = orderWallet.getAddress().toString()
   logger.info("=== Filler Addresses ===")
