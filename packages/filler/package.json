@@ -28,7 +28,7 @@
     "@aztec/stdlib": "3.0.0-devnet.20251212",
     "@chainsafe/persistent-merkle-tree": "^1.1.0",
     "@chainsafe/ssz": "^1.2.0",
-    "@defi-wonderland/aztec-standards": "0.0.0-11cd7319",
+    "@defi-wonderland/aztec-standards": "0.0.0-94ba03f5",
     "@lodestar/types": "^1.35.0",
     "async-mutex": "^0.5.0",
     "dotenv": "^16.4.7",
