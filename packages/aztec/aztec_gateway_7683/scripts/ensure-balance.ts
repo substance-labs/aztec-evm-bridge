@@ -47,6 +47,7 @@ const main = async () => {
     throw new Error(`Token contract not found on Aztec: ${tokenAddress}`)
   }
   await wallet.registerContract(tokenInstance, TokenContractArtifact)
+  await wallet.registerSender(targetAddress)
 
   const token = await TokenContract.at(tokenAddr, wallet)
 
