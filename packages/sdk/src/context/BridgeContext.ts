@@ -9,8 +9,16 @@ import { AztecGateway7683Contract } from "../utils/artifacts/AztecGateway7683/Az
 import { AztecGateway7683ContractArtifact } from "../utils/artifacts/AztecGateway7683/AztecGateway7683"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
 import { getSponsoredFPCInstance, parseFilledLog } from "../utils"
-import { chainsConfig } from "../constants"
-import { BridgeConfigs, FilledLog, InternalChain, Order } from "../types"
+import {
+  defaultChainsConfig,
+  DEFAULT_FORWARDER_ADDRESS,
+  DEFAULT_AZTEC_ROLLUP_L1_ADDRESS,
+  DEFAULT_OP_STACK_ANCHOR_REGISTRY,
+  DEFAULT_FORWARDER_CHAIN_ID,
+  FORWARDER_CHAIN,
+} from "../constants"
+import { BridgeConfigs, FilledLog, InternalChain } from "../types"
+import * as viemChains from "viem/chains"
 
 export class BridgeContext {
   azguardClient?: AzguardClient
@@ -18,6 +26,12 @@ export class BridgeContext {
   beaconApiUrl?: string
   evmPrivateKey?: Hex
   evmProvider?: Client
+  chainsConfig: Record<string, InternalChain>
+  forwarderAddress: Hex
+  aztecRollupContractL1Address: Hex
+  opStackAnchorRegistryAddress: Hex
+  forwarderChainId: number
+  #forwarderChain?: Chain
 
   #wallet?: Wallet
   #account?: AccountWithSecretKey
@@ -43,6 +57,42 @@ export class BridgeContext {
     this.beaconApiUrl = beaconApiUrl
     this.evmPrivateKey = evmPrivateKey
     this.evmProvider = evmProvider
+    this.chainsConfig = configs.chainsConfig ?? defaultChainsConfig
+    this.forwarderAddress = configs.forwarderAddress ?? DEFAULT_FORWARDER_ADDRESS
+    this.aztecRollupContractL1Address = configs.aztecRollupContractL1Address ?? DEFAULT_AZTEC_ROLLUP_L1_ADDRESS
+    this.opStackAnchorRegistryAddress = configs.opStackAnchorRegistryAddress ?? DEFAULT_OP_STACK_ANCHOR_REGISTRY
+    this.forwarderChainId = configs.forwarderChainId ?? DEFAULT_FORWARDER_CHAIN_ID
+  }
+
+  getAztecConfig() {
+    const aztecConfig = this.chainsConfig.aztecDevnet
+    if (!aztecConfig) throw new Error("Aztec chain config not found")
+    return aztecConfig
+  }
+
+  getAztecRpcUrl(): string {
+    return this.getAztecConfig().chain.rpcUrls.default.http[0]
+  }
+
+  getAztecGatewayAddress(): Hex {
+    return this.getAztecConfig().gatewayAddress
+  }
+
+  getAztecChainId(): number {
+    return this.getAztecConfig().chain.id
+  }
+
+  getForwarderChain(): Chain {
+    if (!this.#forwarderChain) {
+      if (this.forwarderChainId === DEFAULT_FORWARDER_CHAIN_ID) {
+        this.#forwarderChain = FORWARDER_CHAIN
+      } else {
+        const chain = (Object.values(viemChains) as Chain[]).find((c) => c.id === this.forwarderChainId)
+        if (!chain) throw new Error(`Forwarder chain not found for ID: ${this.forwarderChainId}`)
+        this.#forwarderChain = chain
+      }
+    }
+    return this.#forwarderChain
   }
 
   async getAztecWallet(): Promise<Wallet> {
@@ -92,7 +142,7 @@ export class BridgeContext {
   }
 
   getChainByChainId(chainId: number): InternalChain {
-    const chains = Object.values(chainsConfig) as InternalChain[]
+    const chains = Object.values(this.chainsConfig) as InternalChain[]
     const chain = chains.find((c) => c.chain.id === chainId)
     if (!chain) throw new Error("Chain not supported")
     return chain
@@ -131,7 +181,7 @@ export class BridgeContext {
     gatewayIn: Hex
     gatewayOut: Hex
   } {
-    const chains = Object.values(chainsConfig) as InternalChain[]
+    const chains = Object.values(this.chainsConfig) as InternalChain[]
     const chainIn = chains.find((c) => c.chain.id === chainIdIn)
     if (!chainIn) throw new Error("Unsupported source chain")
     const gatewayIn = chainIn.gatewayAddress
@@ -145,7 +195,9 @@ export class BridgeContext {
   }
 
   async maybeRegisterAztecGateway(): Promise<void> {
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
+    const aztecConfig = this.chainsConfig.aztecDevnet
+    if (!aztecConfig) throw new Error("Aztec chain config not found")
+    const gateway = aztecConfig.gatewayAddress
     if (!this.#aztecGatewayRegistered) {
       if (this.azguardClient) {
         await this.azguardClient!.execute([
@@ -158,16 +210,16 @@ export class BridgeContext {
         ])
       } else {
         const wallet = await this.getAztecWallet()
-        const instance = await createAztecNodeClient(
-          chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0],
-        ).getContract(AztecAddress.fromString(gateway))
+        const instance = await createAztecNodeClient(aztecConfig.chain.rpcUrls.default.http[0]).getContract(
+          AztecAddress.fromString(gateway),
+        )
         if (!instance) {
           throw new Error(`Contract instance not found for gateway address ${gateway}`)
         }
         await wallet.registerContract(instance, AztecGateway7683Contract.artifact)
 
         // Register the Sponsored FPC contract
-        const sponsoredFPC = await getSponsoredFPCInstance()
+        const sponsoredFPC = await getSponsoredFPCInstance(aztecConfig.chain.rpcUrls.default.http[0])
         await wallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
       }
       this.#aztecGatewayRegistered = true
@@ -175,15 +227,13 @@ export class BridgeContext {
   }
 
   async getAztecFilledLogByOrderId(orderId: Hex): Promise<FilledLog | undefined> {
-    // TODO: understand why if i use fromBlock and toBlock i always receive the penultimante log.
-    // Basically i never receive the last one even if block numbers are up to date
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
-    const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
+    const aztecConfig = this.chainsConfig.aztecDevnet
+    if (!aztecConfig) throw new Error("Aztec chain config not found")
+    const gateway = aztecConfig.gatewayAddress
+    const { logs } = await createAztecNodeClient(aztecConfig.chain.rpcUrls.default.http[0]).getPublicLogs({
       contractAddress: AztecAddress.fromString(gateway),
     })
 
-    // Filter for Filled events (they have 13 fields: fields[0-12])
-    // Open events have 13 fields but different structure
     const filledLogs = logs.filter(({ log }) => log.fields.length === 13 && log.fields[11] !== undefined)
 
     const parsedLogs = filledLogs.map(({ log }) => parseFilledLog(log.fields))

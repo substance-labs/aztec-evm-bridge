@@ -1,6 +1,5 @@
 import { Hex } from "viem"
 import { AzguardClient } from "@azguardwallet/client"
-import { chainsConfig } from "./constants"
 import type {
   BridgeConfigs,
   FillOrderDetails,
@@ -22,7 +21,6 @@ export class Bridge {
   private evmToAztecOps: EvmToAztecOperations
   private forwardOps: ForwardOperations
 
-  // Public properties for backward compatibility or direct access if needed
   public get azguardClient(): AzguardClient | undefined {
     return this.context.azguardClient
   }
@@ -49,12 +47,17 @@ export class Bridge {
   static async create(configs: BridgeConfigs): Promise<Bridge> {
     const bridge = new Bridge(configs)
 
-    // Initialize contracts for non-Azguard wallets
     if (!bridge.azguardClient) {
       await bridge.context.maybeRegisterAztecGateway()
     }
 
     return bridge
+  }
+
+  private getAztecChainId(): number {
+    const aztecConfig = this.context.chainsConfig.aztecDevnet
+    if (!aztecConfig) throw new Error("Aztec chain config not found")
+    return aztecConfig.chain.id
   }
 
   async openOrder(order: Order, callbacks?: OrderCallbacks): Promise<OrderResult> {
@@ -65,9 +68,10 @@ export class Bridge {
     if (!validModes.includes(mode)) throw new Error(`Invalid mode: ${mode}`)
     if (data.length !== 66) throw new Error("Invalid data: must be 32 bytes")
 
-    if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdIn === aztecChainId) {
       return this.aztecToEvmOps.openOrder(order, callbacks)
-    } else if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdOut === aztecChainId) {
       return this.evmToAztecOps.openOrder(order, callbacks)
     } else {
       throw new Error("Neither chain is Aztec")
@@ -78,9 +82,10 @@ export class Bridge {
     const { orderData } = details
     if (orderData.fillDeadline <= Math.floor(Date.now() / 1000)) throw new Error("Order expired")
 
-    if (orderData.originDomain === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (orderData.originDomain === aztecChainId) {
       return this.aztecToEvmOps.fillOrder(details)
-    } else if (orderData.destinationDomain === chainsConfig.aztecDevnet.chain.id) {
+    } else if (orderData.destinationDomain === aztecChainId) {
       return this.evmToAztecOps.fillOrder(details)
     }
     throw new Error("Neither chain is Aztec")
@@ -88,9 +93,10 @@ export class Bridge {
 
   async refundOrder(details: RefundOrderDetails): Promise<Hex> {
     const { chainIdIn, chainIdOut } = details
-    if (chainIdIn === chainsConfig.aztecDevnet.chain.id) {
+    const aztecChainId = this.getAztecChainId()
+    if (chainIdIn === aztecChainId) {
       return this.aztecToEvmOps.refundOrder(details)
-    } else if (chainIdOut === chainsConfig.aztecDevnet.chain.id) {
+    } else if (chainIdOut === aztecChainId) {
       return this.evmToAztecOps.refundOrder(details)
     }
     throw new Error("Neither chain is Aztec")

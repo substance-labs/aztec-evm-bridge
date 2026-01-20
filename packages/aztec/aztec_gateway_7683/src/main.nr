@@ -105,9 +105,17 @@ pub contract AztecGateway7683 {
 
         // transfer from gateway public balance to user private balance
         let token = u8_32_to_aztec_address(order_data.output_token);
-        self.call(Token::at(token).transfer_public_to_private(
-            self.address,
+        
+        // The transfer note completer needs to be this contract, 
+        // therefore it is not possible to use transfer_public_to_private
+        let commitment = self.call(Token::at(token).initialize_transfer_commitment(
             self.msg_sender().unwrap(),
+            self.address,
+        ));
+
+        self.enqueue(Token::at(token).transfer_public_to_commitment(
+            self.address,
+            commitment,
             u8_32_to_u128(order_data.amount_out),
             0,
         ));
@@ -208,9 +216,17 @@ pub contract AztecGateway7683 {
         );
 
         let token = u8_32_to_aztec_address(order_data.input_token);
-        self.call(Token::at(token).transfer_public_to_private(
-            self.address,
+
+        // The transfer note completer needs to be this contract, 
+        // therefore it is not possible to use transfer_public_to_private
+        let commitment = self.call(Token::at(token).initialize_transfer_commitment(
             self.msg_sender().unwrap(),
+            self.address,
+        ));
+
+        self.enqueue(Token::at(token).transfer_public_to_commitment(
+            self.address,
+            commitment,
             u8_32_to_u128(order_data.amount_in),
             0,
         ));
@@ -500,9 +516,17 @@ pub contract AztecGateway7683 {
 
         let filler = u8_32_to_aztec_address(filler_data_bytes);
         let token = u8_32_to_aztec_address(order_data.input_token);
-        self.call(Token::at(token).transfer_public_to_private(
-            self.address,
+
+        // The transfer note completer needs to be this contract, 
+        // therefore it is not possible to use transfer_public_to_private
+        let commitment = self.call(Token::at(token).initialize_transfer_commitment(
             filler,
+            self.address,
+        ));
+
+        self.enqueue(Token::at(token).transfer_public_to_commitment(
+            self.address,
+            commitment,
             u8_32_to_u128(order_data.amount_in),
             0,
         ));

@@ -11,8 +11,15 @@ import { rmSync } from "fs"
 import { Bridge, chainsConfig, ResolvedOrder, OrderDataEncoder, getAztecAddressFromAzguardAccount } from "../src"
 
 // Token addresses must match filler config for e2e tests to work
-const TOKEN_ON_AZTEC_ADDRESS = "0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1"
-const TOKEN_ON_BASE_ADDRESS = "0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055"
+if (!process.env.AZTEC_TOKEN_ADDRESS) {
+  throw new Error("AZTEC_TOKEN_ADDRESS environment variable is required")
+}
+if (!process.env.EVM_TOKEN_ADDRESS) {
+  throw new Error("EVM_TOKEN_ADDRESS environment variable is required")
+}
+
+const TOKEN_ON_AZTEC_ADDRESS = process.env.AZTEC_TOKEN_ADDRESS as Hex
+const TOKEN_ON_BASE_ADDRESS = process.env.EVM_TOKEN_ADDRESS as Hex
 
 // Check if external filler service is running
 const EXTERNAL_FILLER = process.env.EXTERNAL_FILLER === "true" || process.env.USE_EXTERNAL_FILLER === "true"

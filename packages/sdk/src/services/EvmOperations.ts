@@ -18,17 +18,31 @@ import { privateKeyToAccount } from "viem/accounts"
 import * as evmChains from "viem/chains"
 import { OrderDataEncoder } from "../utils"
 import { approveTokens, checkTokenBalance } from "../helpers/tokenOperations"
-import { gatewayAddresses } from "../constants"
+import { defaultChainsConfig } from "../constants"
 import l2Gateway7683Abi from "../utils/abi/l2Gateway7683"
-import type { FillOrderDetails, OrderData } from "../types"
+import type { FillOrderDetails, InternalChain, OrderData } from "../types"
 
 export class EvmOperations {
   evmPrivateKey?: Hex
   evmProvider?: any
+  chainsConfig: Record<string, InternalChain>
 
-  constructor(evmPrivateKey?: Hex, evmProvider?: any) {
+  constructor(
+    evmPrivateKey?: Hex,
+    evmProvider?: any,
+    chainsConfig: Record<string, InternalChain> = defaultChainsConfig,
+  ) {
     this.evmPrivateKey = evmPrivateKey
     this.evmProvider = evmProvider
+    this.chainsConfig = chainsConfig
+  }
+
+  private getGatewayAddressByChainId(chainId: number): Hex {
+    const chain = Object.values(this.chainsConfig).find((c) => c.chain.id === chainId)
+    if (!chain) {
+      throw new Error(`No gateway configured for chain ID ${chainId}`)
+    }
+    return chain.gatewayAddress
   }
 
   /**
@@ -90,7 +104,7 @@ export class EvmOperations {
   async fillAztecToEvmOrder(details: FillOrderDetails): Promise<Hex> {
     const { orderId, orderData } = details
     const chainOut = this.getChainByChainId(orderData.destinationDomain)
-    const gatewayOut = gatewayAddresses[chainOut.id]
+    const gatewayOut = this.getGatewayAddressByChainId(chainOut.id)
 
     const { address, walletClient } = await this.getEvmWalletClientAndAddress(chainOut)
     const fillerData = padHex(address)
@@ -132,7 +146,7 @@ export class EvmOperations {
     fillDeadline: number | undefined,
     originData: Hex | undefined,
   ): Promise<Hex> {
-    const gatewayOut = gatewayAddresses[chainOut.id]
+    const gatewayOut = this.getGatewayAddressByChainId(chainOut.id)
     const { walletClient, address } = await this.getEvmWalletClientAndAddress(chainOut)
 
     return await walletClient.writeContract({

@@ -196,7 +196,7 @@ describe("AztecGateway7683", () => {
     const publicClientGetAddresses = await publicClient.getAddresses()
     const rollup = new RollupContract(publicClient, l1Contracts.rollupAddress)
     version = await rollup.getVersion()
-    const [l1Account] = await publicClient.getAddresses()
+    await publicClient.getAddresses()
     // Use Sender as forwarder/portal so L1->L2 message matches consume_l1_to_l2_message expectations.
     const setupResult = await setup(node, EthAddress.fromString(publicClientGetAddresses[0] as string))
     userWalletAndAccount = { wallet: setupResult.userWallet, accountAddress: setupResult.userAccountAddress }
@@ -456,6 +456,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -648,6 +649,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -739,6 +741,7 @@ describe("AztecGateway7683", () => {
       toBlock: fromBlock + 2,
       contractAddress: aztecGateway.address,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -746,6 +749,22 @@ describe("AztecGateway7683", () => {
     expect(orderId.toString()).toBe(parsedLog.orderId)
     expect(orderData.encode()).toBe(parsedLog.originData)
     expect(fillerAddress.toString()).toBe(parsedLog.fillerData)
+
+    // Get user's private balance before claiming
+    const balancePre = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+
+    console.log("Claiming private order...")
+    console.log(hexToBytes(orderId.toString()))
+    console.log(orderId.toString())
+    console.log("-----")
+    console.log(hexToBytes(orderData.encode()))
+    console.log(orderData.encode())
+    console.log("-----")
+    console.log(hexToBytes(fillerAddress.toString()))
+    console.log(fillerAddress.toString())
 
     await aztecGateway
       .withWallet(userWallet)
@@ -760,6 +779,13 @@ describe("AztecGateway7683", () => {
         fee: { paymentMethod },
       })
       .wait()
+
+    // Verify user received the tokens in their private balance
+    const balancePost = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+    expect(balancePost).toBe(balancePre + amountOut)
 
     const content = sha256ToField([
       Buffer.from(SETTLE_ORDER_TYPE.slice(2), "hex"),

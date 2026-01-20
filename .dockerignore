@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+coverage
+**/coverage
+
+# Git
+.git
+.gitignore
+
+# EVM/Foundry (large libraries)
+packages/evm/lib
+packages/evm/cache
+packages/evm/out
+packages/evm/broadcast
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+logs
+**/logs
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/test
+
+# Documentation
+*.md
+docs
+
+# Misc
+.DS_Store
+Thumbs.db

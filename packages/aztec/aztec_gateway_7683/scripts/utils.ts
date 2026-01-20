@@ -29,13 +29,13 @@ export const getPxe = async (rpcUrl: string) => {
     useLogSuffix: true,
   })
 
-  const fpcContractInstance = await getSponsoredFPCInstance(node)
+  const fpcContractInstance = await getSponsoredFPCInstance()
   await pxe.registerContract({ instance: fpcContractInstance, artifact: SponsoredFPCContractArtifact })
 
   return pxe
 }
 
-export const getTestWallet = async (rpcUrl: string) => {
+export const getTestWallet = async (rpcUrl: string, storeName?: string) => {
   const node = getNode(rpcUrl)
 
   const fullConfig = {
@@ -44,12 +44,12 @@ export const getTestWallet = async (rpcUrl: string) => {
     proverEnabled: true,
   }
 
-  const store = await createStore(process.env.PXE_STORE_NAME ?? "pxe-testnet", {
+  const store = await createStore(storeName ?? process.env.PXE_STORE_NAME ?? "pxe-testnet", {
     dataDirectory: "store",
     dataStoreMapSizeKb: 1e6,
   })
 
-  const fpcContractInstance = await getSponsoredFPCInstance(node)
+  const fpcContractInstance = await getSponsoredFPCInstance()
 
   const wallet = await TestWallet.create(node, fullConfig, { store, useLogSuffix: true })
   await wallet.registerContract(fpcContractInstance, SponsoredFPCContractArtifact)
@@ -88,10 +88,22 @@ export const addAccountWithSecretKey = async ({
   const salt = Fr.fromHexString(s)
   const secretKey = Fr.fromHexString(sk)
   const accountContract = await testWallet.createSchnorrAccount(secretKey, salt)
+
   if (deploy) {
     if (!paymentMethod) {
       throw new Error("paymentMethod is required when deploy is true")
     }
+
+    // Check if already deployed before attempting deployment
+    const account = await accountContract.getAccount()
+    const address = account.getAddress()
+    const metadata = await testWallet.getContractMetadata(address)
+
+    if (metadata.isContractInitialized) {
+      // Already deployed, just return the account
+      return account
+    }
+
     const deployMethod = await accountContract.getDeployMethod()
     await deployMethod.send({ from: AztecAddress.ZERO, fee: { paymentMethod } }).wait()
   }

@@ -1,20 +1,24 @@
 import type { Hex } from "viem"
 import * as evmChains from "viem/chains"
-import { chainsConfig, PRIVATE_ORDER, PUBLIC_ORDER } from "../constants"
+import { defaultChainsConfig, PRIVATE_ORDER, PUBLIC_ORDER } from "../constants"
 import type { InternalChain, SwapMode } from "../types"
 
 export class BridgeHelpers {
   static getChainInAndOutByChainIds(
     chainIdIn: number,
     chainIdOut: number,
+    chainsConfig: Record<string, InternalChain> = defaultChainsConfig,
   ): { chainIn: InternalChain; chainOut: InternalChain } {
     return {
-      chainIn: BridgeHelpers.getChainByChainId(chainIdIn),
-      chainOut: BridgeHelpers.getChainByChainId(chainIdOut),
+      chainIn: BridgeHelpers.getChainByChainId(chainIdIn, chainsConfig),
+      chainOut: BridgeHelpers.getChainByChainId(chainIdOut, chainsConfig),
     }
   }
 
-  static getChainByChainId(chainId: number): InternalChain {
+  static getChainByChainId(
+    chainId: number,
+    chainsConfig: Record<string, InternalChain> = defaultChainsConfig,
+  ): InternalChain {
     const chainConfig = Object.values(chainsConfig).find((config) => config.chain.id === chainId)
     if (chainConfig) {
       return chainConfig
@@ -35,7 +39,11 @@ export class BridgeHelpers {
     }
   }
 
-  static getGatewaysByChainIds(chainIdIn: number, chainIdOut: number): { gatewayIn: Hex; gatewayOut: Hex } {
+  static getGatewaysByChainIds(
+    chainIdIn: number,
+    chainIdOut: number,
+    chainsConfig: Record<string, InternalChain> = defaultChainsConfig,
+  ): { gatewayIn: Hex; gatewayOut: Hex } {
     const chainIn = Object.values(chainsConfig).find((c) => c.chain.id === chainIdIn)
     const chainOut = Object.values(chainsConfig).find((c) => c.chain.id === chainIdOut)
 

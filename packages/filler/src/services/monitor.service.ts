@@ -106,11 +106,22 @@ export class Monitor {
   private async checkAztecBalance(chainConfig: AztecChainConfig) {
     try {
       const address = this.aztecWallet.getAddress()
-      this.logger.info(`Checking Aztec balances for ${address.toString()}`)
+      const node = this.aztecWallet.getAztecNode()
+      const currentBlock = await node.getBlockNumber()
+      this.logger.info(`Checking Aztec balances for ${address.toString()} (current block: ${currentBlock})`)
 
       for (const token of chainConfig.tokens) {
         try {
           const tokenContract = await TokenContract.at(AztecAddress.fromString(token.address), this.aztecWallet)
+
+          // Sync private state to discover new notes before checking balances
+          try {
+            this.logger.info(`Syncing private state for token ${token.symbol}...`)
+            await tokenContract.methods.sync_private_state().simulate({ from: address })
+            this.logger.info(`✓ Synced private state for token ${token.symbol}`)
+          } catch (syncErr) {
+            this.logger.warn(`Failed to sync private state for ${token.symbol}:`, syncErr)
+          }
 
           // Checking public balance
           const publicBalance = await tokenContract.methods.balance_of_public(address).simulate({ from: address })

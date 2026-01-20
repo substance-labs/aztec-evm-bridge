@@ -2,6 +2,7 @@ import { createLogger } from "@aztec/foundation/log"
 import type { DeployOptions } from "@aztec/aztec.js/contracts"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
 import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
+import { writeFileSync, mkdirSync } from "fs"
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
@@ -50,6 +51,20 @@ const main = async () => {
   await wallet.registerContract(tokenInstance, TokenContract.artifact)
 
   logger.info(`token deployed: ${token.address.toString()}`)
+
+  // Save deployment to file
+  mkdirSync("deployments", { recursive: true })
+  writeFileSync(
+    "deployments/token_deployment.json",
+    JSON.stringify(
+      {
+        Token: token.address.toString(),
+      },
+      null,
+      2,
+    ),
+  )
+  logger.info("Token address saved to deployments/token_deployment.json")
 }
 
 main().catch((err) => {

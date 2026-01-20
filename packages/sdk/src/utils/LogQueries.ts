@@ -2,9 +2,22 @@ import { createAztecNodeClient } from "@aztec/aztec.js/node"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import type { Hex } from "viem"
 
-import { chainsConfig } from "../constants"
+import { defaultChainsConfig } from "../constants"
 import { getResolvedOrderByAztecLogs, parseFilledLog } from "./index"
-import type { FilledLog, ResolvedOrder } from "../types"
+import type { FilledLog, InternalChain, ResolvedOrder } from "../types"
+
+export interface LogQueriesConfig {
+  aztecGatewayAddress: Hex
+  aztecRpcUrl: string
+}
+
+function getDefaultConfig(): LogQueriesConfig {
+  const aztecConfig = defaultChainsConfig.aztecDevnet
+  return {
+    aztecGatewayAddress: aztecConfig.gatewayAddress,
+    aztecRpcUrl: aztecConfig.chain.rpcUrls.default.http[0],
+  }
+}
 
 /**
  * Utilities for querying Aztec gateway logs
@@ -15,18 +28,15 @@ export class LogQueries {
    * Searches through Aztec gateway public logs for a filled event matching the given order ID
    *
    * @param orderId - The order ID to search for
+   * @param config - Optional config with gateway address and RPC URL
    * @returns The filled log if found, undefined otherwise
    */
-  static async getAztecFilledLogByOrderId(orderId: Hex): Promise<FilledLog | undefined> {
-    // TODO: understand why if i use fromBlock and toBlock i always receive the penultimate log.
-    // Basically i never receive the last one even if block numbers are up to date
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
-    const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
-      contractAddress: AztecAddress.fromString(gateway),
+  static async getAztecFilledLogByOrderId(orderId: Hex, config?: LogQueriesConfig): Promise<FilledLog | undefined> {
+    const { aztecGatewayAddress, aztecRpcUrl } = config ?? getDefaultConfig()
+    const { logs } = await createAztecNodeClient(aztecRpcUrl).getPublicLogs({
+      contractAddress: AztecAddress.fromString(aztecGatewayAddress),
     })
 
-    // Filter for Filled events (they have 13 fields: fields[0-12])
-    // Open events have 13 fields but different structure
     const filledLogs = logs.filter(({ log }) => log.fields.length === 13 && log.fields[11] !== undefined)
 
     const parsedLogs = filledLogs.map(({ log }) => parseFilledLog(log.fields))
@@ -38,14 +48,13 @@ export class LogQueries {
    * Searches through Aztec gateway public logs for an open event matching the given order ID
    *
    * @param orderId - The order ID to search for
+   * @param config - Optional config with gateway address and RPC URL
    * @returns The resolved order if found, undefined otherwise
    */
-  static async getAztecOpenLogByOrderId(orderId: Hex): Promise<ResolvedOrder | undefined> {
-    // TODO: understand why if i use fromBlock and toBlock i always receive the penultimate log.
-    // Basically i never receive the last one even if block numbers are up to date
-    const gateway = chainsConfig.aztecDevnet.gatewayAddress
-    const { logs } = await createAztecNodeClient(chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]).getPublicLogs({
-      contractAddress: AztecAddress.fromString(gateway),
+  static async getAztecOpenLogByOrderId(orderId: Hex, config?: LogQueriesConfig): Promise<ResolvedOrder | undefined> {
+    const { aztecGatewayAddress, aztecRpcUrl } = config ?? getDefaultConfig()
+    const { logs } = await createAztecNodeClient(aztecRpcUrl).getPublicLogs({
+      contractAddress: AztecAddress.fromString(aztecGatewayAddress),
     })
     const parsedOpenLogs = getResolvedOrderByAztecLogs(logs)
     return parsedOpenLogs.find((order) => order.orderId === orderId)

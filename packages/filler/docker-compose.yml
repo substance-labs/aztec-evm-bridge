@@ -1,0 +1,76 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: filler-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USER:-filler}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD:-filler}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-filler}
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  filler:
+    build:
+      context: ../..
+      dockerfile: packages/filler/Dockerfile
+    container_name: filler
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      # MongoDB Configuration
+      MONGO_DB_URI: mongodb://mongodb:27017
+      MONGO_DB_USER: ${MONGO_DB_USER:-filler}
+      MONGO_DB_PASSWORD: ${MONGO_DB_PASSWORD:-filler}
+      MONGO_DB_AUTH_SOURCE: admin
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-filler}
+
+      # EVM Configuration
+      EVM_L2_RPC_URL: ${EVM_L2_RPC_URL}
+      EVM_L2_CHAIN_ID: ${EVM_L2_CHAIN_ID:-84532}
+      FORWARDER_RPC_URL: ${FORWARDER_RPC_URL}
+      FORWARDER_CHAIN_ID: ${FORWARDER_CHAIN_ID:-11155111}
+      PK_EVM: ${PK_EVM}
+      BEACON_API_URL: ${BEACON_API_URL}
+      EVM_WATCH_INTERVAL_TIME_MS: ${EVM_WATCH_INTERVAL_TIME_MS:-5000}
+
+      # Contract Addresses (can be overridden or loaded from JSON)
+      L2_EVM_GATEWAY_ADDRESS: ${L2_EVM_GATEWAY_ADDRESS:-}
+      L2_EVM_TOKEN_ADDRESS: ${L2_EVM_TOKEN_ADDRESS:-}
+      FORWARDER_ADDRESS: ${FORWARDER_ADDRESS:-}
+      OP_STACK_ANCHOR_REGISTRY_ADDRESS: ${OP_STACK_ANCHOR_REGISTRY_ADDRESS}
+      AZTEC_ROLLUP_CONTRACT_L1_ADDRESS: ${AZTEC_ROLLUP_CONTRACT_L1_ADDRESS}
+
+      # Aztec Configuration
+      AZTEC_RPC_URL: ${AZTEC_RPC_URL}
+      AZTEC_GATEWAY_ADDRESS: ${AZTEC_GATEWAY_ADDRESS:-}
+      AZTEC_TOKEN_ADDRESS: ${AZTEC_TOKEN_ADDRESS:-}
+      AZTEC_SECRET_KEY: ${AZTEC_SECRET_KEY}
+      AZTEC_SALT: ${AZTEC_SALT}
+      AZTEC_PROVER_ENABLED: ${AZTEC_PROVER_ENABLED:-false}
+      AZTEC_WATCH_INTERVAL_TIME_MS: ${AZTEC_WATCH_INTERVAL_TIME_MS:-5000}
+      AZTEC_SANDBOX: ${AZTEC_SANDBOX:-false}
+
+      # Optional: Deployment JSON paths (paths inside container)
+      # These are automatically set to point to mounted deployment files
+      DEPLOYMENT_JSON_PATH: /app/deployments/${DEPLOYMENT_JSON_FILE:-}
+      TOKENS_JSON_PATH: /app/deployments/${TOKENS_JSON_FILE:-}
+
+      # Balance check interval
+      BALANCE_CHECK_INTERVAL_MS: ${BALANCE_CHECK_INTERVAL_MS:-60000}
+    volumes:
+      # Mount deployment files directory
+      - ../../deployments:/app/deployments:ro
+
+volumes:
+  mongodb_data:
