@@ -16,6 +16,13 @@ import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { waitForTransactionReceipt } from "viem/actions"
 
+vi.mock("../../src/config.js", () => ({
+  config: {
+    evm: { forwarderChainId: "11155111" },
+    aztec: { isSandbox: false },
+  },
+}))
+
 let mockIsSandboxEnv = false
 
 // Mock dependencies

@@ -19,6 +19,16 @@ vi.mock("../../src/utils/logger.js", () => ({
   },
 }))
 
+vi.mock("../../src/config.js", () => ({
+  config: {
+    chains: {
+      aztec: {
+        rpcUrl: "https://next.devnet.aztec-labs.com",
+      },
+    },
+  },
+}))
+
 vi.mock("@aztec/aztec.js/node", () => ({
   createAztecNodeClient: vi.fn().mockResolvedValue({
     getL1ContractAddresses: vi.fn().mockResolvedValue({}),
