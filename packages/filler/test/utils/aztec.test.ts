@@ -119,13 +119,13 @@ describe("Aztec Utils", () => {
   describe("async functions", () => {
     beforeEach(() => {
       vi.clearAllMocks()
-      process.env.AZTEC_RPC_URL = "http://localhost:8080"
+      process.env.AZTEC_RPC_URL = "https://next.devnet.aztec-labs.com"
     })
 
     it("should getAztecNode", async () => {
       const node = await getAztecNode()
       expect(node).toBeDefined()
-      expect(createAztecNodeClient).toHaveBeenCalledWith("http://localhost:8080")
+      expect(createAztecNodeClient).toHaveBeenCalledWith("https://next.devnet.aztec-labs.com")
     })
 
     it("should getAztecNode with default URL", async () => {

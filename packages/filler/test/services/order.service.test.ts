@@ -25,6 +25,8 @@ vi.mock("../../src/config.js", async () => {
           gateway: "0x1111111111111111111111111111111111111111111111111111111111111111",
         },
       },
+      evm: { forwarderChainId: "11155111" },
+      aztec: { isSandbox: false },
     },
   }
 })
