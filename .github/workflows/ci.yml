@@ -40,7 +40,6 @@ jobs:
       run: |
         cd packages/aztec/aztec_gateway_7683
         yarn compile
-        yarn postprocess
         yarn codegen
         yarn test
 
