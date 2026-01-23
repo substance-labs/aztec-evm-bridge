@@ -4,7 +4,7 @@ import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.
 
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
-const [, , aztecSecretKey, aztecSalt, tokenAddress, accountAddress, rpcUrl = "https://devnet.aztec-labs.com"] =
+const [, , aztecSecretKey, aztecSalt, tokenAddress, accountAddress, rpcUrl = "https://next.devnet.aztec-labs.com"] =
   process.argv
 
 const main = async () => {
@@ -33,7 +33,7 @@ const main = async () => {
   }
 
   const { TokenContractArtifact } = await import("@defi-wonderland/aztec-standards/artifacts/Token.js")
-  await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+  await wallet.registerContract(tokenInstance, TokenContractArtifact)
   logger.info(`Token contract registered`)
 
   const token = await TokenContract.at(AztecAddress.fromString(tokenAddress), wallet)

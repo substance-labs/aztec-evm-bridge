@@ -34,6 +34,12 @@ const mockWallet = {
   getAztecNode: vi.fn().mockReturnValue(mockNode),
 } as any
 
+// Mock ChainStateRepository
+const mockChainStateRepository = {
+  getLastProcessedBlock: vi.fn(),
+  setLastProcessedBlock: vi.fn(),
+}
+
 describe("AztecWatcher", () => {
   let watcher: AztecWatcher
   const mockOnLogs = vi.fn()
@@ -45,6 +51,8 @@ describe("AztecWatcher", () => {
     eventName: "TestEvent",
     watchIntervalTimeMs: 1000,
     onLogs: mockOnLogs,
+    chainStateRepository: mockChainStateRepository,
+    chainId: "aztec-test",
   }
 
   beforeEach(() => {
@@ -63,33 +71,31 @@ describe("AztecWatcher", () => {
   })
 
   it("should start watching and set interval", async () => {
-    const watchSpy = vi.spyOn(watcher as any, "watch").mockResolvedValue(undefined)
+    mockChainStateRepository.getLastProcessedBlock.mockResolvedValue(null)
+    mockNode.getBlockNumber.mockResolvedValue(100)
+    mockNode.getPublicLogs.mockResolvedValue({ logs: [] })
 
     await watcher.start()
 
-    expect(watchSpy).toHaveBeenCalled()
-
-    vi.advanceTimersByTime(1000)
-    expect(watchSpy).toHaveBeenCalledTimes(2)
+    expect(mockChainStateRepository.getLastProcessedBlock).toHaveBeenCalledWith("aztec-test")
+    expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("No saved block found for chain aztec-test"))
   })
 
-  it("should initialize lastBlock on first watch", async () => {
-    mockNode.getBlockNumber.mockResolvedValue(100)
+  it("should resume from saved block", async () => {
+    mockChainStateRepository.getLastProcessedBlock.mockResolvedValue(50n)
+    mockNode.getBlockNumber.mockResolvedValue(55)
+    mockNode.getPublicLogs.mockResolvedValue({ logs: [] })
 
-    // Ensure lastBlock is 0 initially
-    expect(watcher["lastBlock"]).toBe(0)
+    await watcher.start()
 
-    await (watcher as any).watch()
-
-    // It should set lastBlock to currentBlock - 1 initially, then update to currentBlock
-    // But inside watch:
-    // if (!this.lastBlock) this.lastBlock = currentBlock - 1 (99)
-    // fromBlock = 100
-    // toBlock = 101
-    // this.lastBlock = currentBlock (100)
-
-    expect(watcher["lastBlock"]).toBe(100)
-    expect(mockNode.getPublicLogs).toHaveBeenCalled()
+    expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("Resuming from saved block 50"))
+    // After watch() runs, lastBlock is updated to currentBlock (55)
+    // But the fromBlock should have started from 51
+    expect(mockNode.getPublicLogs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromBlock: 51,
+      }),
+    )
   })
 
   it("should skip if no new blocks", async () => {
@@ -142,6 +148,7 @@ describe("AztecWatcher", () => {
     expect(AztecUtils.parseOpenLog).toHaveBeenCalled()
     expect(AztecUtils.parseResolvedCrossChainOrder).toHaveBeenCalledWith("mockResolvedOrder")
     expect(mockOnLogs).toHaveBeenCalledWith([mockParsedOrder])
+    expect(mockChainStateRepository.setLastProcessedBlock).toHaveBeenCalledWith("aztec-test", 100n)
   })
 
   it("should filter incomplete log groups", async () => {
@@ -161,6 +168,7 @@ describe("AztecWatcher", () => {
     await (watcher as any).watch()
 
     expect(mockOnLogs).toHaveBeenCalledWith([])
+    expect(mockChainStateRepository.setLastProcessedBlock).toHaveBeenCalledWith("aztec-test", 100n)
   })
 
   it("should handle errors gracefully", async () => {
@@ -169,5 +177,16 @@ describe("AztecWatcher", () => {
     await (watcher as any).watch()
 
     expect(mockLogger.error).toHaveBeenCalledWith(expect.any(Error))
+  })
+
+  it("should initialize lastBlock on first watch when no saved block", async () => {
+    mockNode.getBlockNumber.mockResolvedValue(100)
+    mockNode.getPublicLogs.mockResolvedValue({ logs: [] })
+
+    expect(watcher["lastBlock"]).toBe(0)
+
+    await (watcher as any).watch()
+
+    expect(watcher["lastBlock"]).toBe(100)
   })
 })

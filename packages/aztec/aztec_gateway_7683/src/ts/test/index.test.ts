@@ -1,17 +1,16 @@
 import { AztecAddress, EthAddress } from "@aztec/aztec.js/addresses"
-import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
+import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee/testing"
 import { Fr } from "@aztec/aztec.js/fields"
 import { GeneratorIndex } from "@aztec/constants"
 import { ChildProcess, spawn } from "child_process"
-import {
-  createEthereumChain,
-  createExtendedL1Client,
-  ExtendedViemWalletClient,
-  L1ContractAddresses,
-  RollupContract,
-} from "@aztec/ethereum"
+import { createEthereumChain } from "@aztec/ethereum/chain"
+import { createExtendedL1Client } from "@aztec/ethereum/client"
+import { ExtendedViemWalletClient } from "@aztec/ethereum/types"
+import { L1ContractAddresses } from "@aztec/ethereum/l1-contract-addresses"
+import { RollupContract } from "@aztec/ethereum/contracts"
 import { hexToBytes, padHex, parseAbi, sha256, toHex, decodeEventLog } from "viem"
-import { poseidon2HashWithSeparator, sha256ToField } from "@aztec/foundation/crypto"
+import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/poseidon"
+import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { computeL2ToL1MessageHash } from "@aztec/stdlib/hash"
 import {
   computeL2ToL1MembershipWitness,
@@ -22,7 +21,7 @@ import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-sta
 import { TestWallet } from "@aztec/test-wallet/server"
 
 import { parseFilledLog, parseOpenLog, parseResolvedCrossChainOrder, parseSettledLog } from "./utils.js"
-import { AztecGateway7683Contract, AztecGateway7683ContractArtifact } from "../../artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract, AztecGateway7683ContractArtifact } from "../../../target/AztecGateway7683.js"
 import { addRandomAccount } from "../../../scripts/utils.js"
 import { getSponsoredFPCInstance } from "../../../scripts/fpc.js"
 import { OrderData } from "./OrderData.js"
@@ -81,10 +80,7 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
 
   // Register FPC with each wallet
   for (const wallet of [userWallet, fillerWallet, deployerWallet]) {
-    await wallet.registerContract({
-      instance: sponsoredFPC,
-      artifact: SponsoredFPCContract.artifact,
-    })
+    await wallet.registerContract(sponsoredFPC, SponsoredFPCContract.artifact)
   }
 
   const paymentMethod = new SponsoredFeePaymentMethod(sponsoredFPC.address)
@@ -101,7 +97,7 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
   await userWallet.registerSender(deployer.getAddress())
   await fillerWallet.registerSender(deployer.getAddress())
 
-  const gateway = await AztecGateway7683Contract.deploy(
+  const { contract: gateway, instance: gatewayInstance } = await AztecGateway7683Contract.deploy(
     deployerWallet,
     DESTINATION_SETTLER_EVM_L2,
     L2_DOMAIN,
@@ -113,9 +109,9 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
       from: deployer.getAddress(),
       fee: { paymentMethod },
     })
-    .deployed()
+    .wait()
 
-  const token = await TokenContract.deployWithOpts(
+  const { contract: token, instance: tokenInstance } = await TokenContract.deployWithOpts(
     {
       wallet: deployerWallet,
       method: "constructor_with_minter",
@@ -127,17 +123,11 @@ const setup = async (node: AztecNode, portalAddress: EthAddress) => {
     AztecAddress.ZERO,
   )
     .send({ from: deployer.getAddress(), fee: { paymentMethod } })
-    .deployed()
+    .wait()
 
   for (const wallet of [userWallet, fillerWallet, deployerWallet]) {
-    await wallet.registerContract({
-      instance: token.instance,
-      artifact: TokenContractArtifact,
-    })
-    await wallet.registerContract({
-      instance: gateway.instance,
-      artifact: AztecGateway7683ContractArtifact,
-    })
+    await wallet.registerContract(tokenInstance, TokenContractArtifact)
+    await wallet.registerContract(gatewayInstance, AztecGateway7683ContractArtifact)
   }
 
   const amount = 1000n * 10n ** 18n
@@ -191,13 +181,12 @@ describe("AztecGateway7683", () => {
 
   beforeAll(async () => {
     if (!skipSandbox) {
-      sandboxInstance = spawn("aztec", ["start", "--sandbox"], {
+      sandboxInstance = spawn("aztec", ["start", "--local-network"], {
         detached: true,
         stdio: "ignore",
       })
-      console.info("Starting aztec sandbox...")
       await sleep(45000) // wait for sandbox to be ready
-      console.info("Aztec sandbox started")
+      console.log("Sandbox started with PID:", sandboxInstance.pid)
     }
     node = createAztecNodeClient("http://localhost:8080")
     const nodeInfo = await node.getNodeInfo()
@@ -207,7 +196,7 @@ describe("AztecGateway7683", () => {
     const publicClientGetAddresses = await publicClient.getAddresses()
     const rollup = new RollupContract(publicClient, l1Contracts.rollupAddress)
     version = await rollup.getVersion()
-    const [l1Account] = await publicClient.getAddresses()
+    await publicClient.getAddresses()
     // Use Sender as forwarder/portal so L1->L2 message matches consume_l1_to_l2_message expectations.
     const setupResult = await setup(node, EthAddress.fromString(publicClientGetAddresses[0] as string))
     userWalletAndAccount = { wallet: setupResult.userWallet, accountAddress: setupResult.userAccountAddress }
@@ -467,6 +456,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -659,6 +649,7 @@ describe("AztecGateway7683", () => {
       contractAddress: aztecGateway.address,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -750,6 +741,7 @@ describe("AztecGateway7683", () => {
       toBlock: fromBlock + 2,
       contractAddress: aztecGateway.address,
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const logs = allLogs.filter(
       ({ log }: { log: any }) => log.getEmittedFields().length === 11 || log.getEmittedFields().length === 13,
     )
@@ -757,6 +749,22 @@ describe("AztecGateway7683", () => {
     expect(orderId.toString()).toBe(parsedLog.orderId)
     expect(orderData.encode()).toBe(parsedLog.originData)
     expect(fillerAddress.toString()).toBe(parsedLog.fillerData)
+
+    // Get user's private balance before claiming
+    const balancePre = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+
+    console.log("Claiming private order...")
+    console.log(hexToBytes(orderId.toString()))
+    console.log(orderId.toString())
+    console.log("-----")
+    console.log(hexToBytes(orderData.encode()))
+    console.log(orderData.encode())
+    console.log("-----")
+    console.log(hexToBytes(fillerAddress.toString()))
+    console.log(fillerAddress.toString())
 
     await aztecGateway
       .withWallet(userWallet)
@@ -771,6 +779,13 @@ describe("AztecGateway7683", () => {
         fee: { paymentMethod },
       })
       .wait()
+
+    // Verify user received the tokens in their private balance
+    const balancePost = await aztecToken
+      .withWallet(userWallet)
+      .methods.balance_of_private(userAddress)
+      .simulate({ from: userAddress })
+    expect(balancePost).toBe(balancePre + amountOut)
 
     const content = sha256ToField([
       Buffer.from(SETTLE_ORDER_TYPE.slice(2), "hex"),
@@ -793,7 +808,7 @@ describe("AztecGateway7683", () => {
       .simulate({ from: userAddress })
 
     // Get L2 to L1 messages and compute membership witness
-    const L2ToL1witness = await computeL2ToL1MembershipWitness(node, Number(orderSettlementBlockNumber), l2ToL1Message)
+    const L2ToL1witness = await computeL2ToL1MembershipWitness(node, orderSettlementBlockNumber, l2ToL1Message)
     expect(L2ToL1witness).toBeDefined()
     if (!L2ToL1witness) return
     expect(L2ToL1witness.leafIndex).toBe(0n)

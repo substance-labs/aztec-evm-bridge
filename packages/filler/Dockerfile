@@ -22,9 +22,13 @@ WORKDIR /app/packages/filler
 RUN yarn build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:22 AS runner
 
 WORKDIR /app
+
+# Install Aztec CLI (provides bb binary with proper dependencies)
+RUN curl -s https://install.aztec.network | bash
+ENV PATH="/root/.aztec/bin:${PATH}"
 
 # Enable Corepack
 RUN corepack enable

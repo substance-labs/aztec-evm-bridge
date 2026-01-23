@@ -4,6 +4,11 @@ import type { AzguardClient } from "@azguardwallet/client"
 import type { Fr } from "@aztec/aztec.js/fields"
 import type { Wallet } from "@aztec/aztec.js/wallet"
 
+export enum ChainType {
+  AZTEC = "AZTEC",
+  EVM = "EVM",
+}
+
 export type FilledLog = {
   orderId: `0x${string}`
   fillerData: `0x${string}`
@@ -37,19 +42,29 @@ export interface FillInstruction {
 export type Mode = "private" | "public"
 export type SwapMode = Mode | "privateWithHook" | "publicWithHook"
 
+export type AztecChain = {
+  id: number
+  name: string
+  rpcUrls: {
+    [key: string]: {
+      http: readonly string[]
+    }
+    default: {
+      http: readonly string[]
+    }
+  }
+}
+
 export type InternalChain =
-  | Chain
   | {
-      id: number
-      name: string
-      rpcUrls: {
-        [key: string]: {
-          http: readonly string[]
-        }
-        default: {
-          http: readonly string[]
-        }
-      }
+      type: ChainType.EVM
+      chain: Chain
+      gatewayAddress: `0x${string}`
+    }
+  | {
+      type: ChainType.AZTEC
+      chain: AztecChain
+      gatewayAddress: `0x${string}`
     }
 
 export interface Order {
@@ -142,4 +157,9 @@ export interface BridgeConfigs {
   evmPrivateKey?: Hex
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   evmProvider?: any
+  chainsConfig?: Record<string, InternalChain>
+  forwarderAddress?: Hex
+  aztecRollupContractL1Address?: Hex
+  opStackAnchorRegistryAddress?: Hex
+  forwarderChainId?: number
 }

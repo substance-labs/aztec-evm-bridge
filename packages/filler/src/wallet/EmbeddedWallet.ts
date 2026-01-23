@@ -1,9 +1,9 @@
-import { BaseWallet } from "@aztec/aztec.js/wallet"
+import { BaseWallet } from "@aztec/wallet-sdk/base-wallet"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import type { Account } from "@aztec/aztec.js/account"
 import { AccountManager, type Aliased } from "@aztec/aztec.js/wallet"
 import type { PXE } from "@aztec/pxe/client/bundle"
-import { createAztecNodeClient, type AztecNode } from "@aztec/aztec.js/node"
+import { type AztecNode } from "@aztec/aztec.js/node"
 import { createPXE, getPXEConfig } from "@aztec/pxe/server"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
 import { createStore } from "@aztec/kv-store/lmdb"
@@ -11,11 +11,10 @@ import type { ContractArtifact } from "@aztec/stdlib/abi"
 import { Fr } from "@aztec/aztec.js/fields"
 import { deriveSigningKey } from "@aztec/stdlib/keys"
 import { SchnorrAccountContract } from "@aztec/accounts/schnorr"
-import { TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
+import { TokenContractArtifact, TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import path from "path"
-import { promises as fs } from "fs"
 
-import type { AztecChainConfig } from "../config.js"
+import { config, type AztecChainConfig } from "../config.js"
 import { getAztecNode, getSponsoredFPCInstance } from "../utils/aztec.js"
 import logger from "../utils/logger.js"
 import { AztecGateway7683ContractArtifact } from "../artifacts/AztecGateway7683/AztecGateway7683.js"
@@ -32,17 +31,11 @@ const initPxe = async (storeName: string, aztecNode: AztecNode): Promise<PXE> =>
   const fullConfig = {
     ...getPXEConfig(),
     l1Contracts: await aztecNode.getL1ContractAddresses(),
-    proverEnabled: process.env.AZTEC_PROVER_ENABLED === "true",
+    proverEnabled: config.aztec.proverEnabled,
   }
 
   const dataDirectory = "storePath"
   const storePath = path.join(dataDirectory, storeName)
-
-  try {
-    await fs.rm(storePath, { recursive: true, force: true })
-  } catch (e) {
-    logger.warn(`Could not remove existing store at ${storePath}: ${e instanceof Error ? e.message : e}`)
-  }
 
   const store = await createStore(storeName, {
     dataDirectory,
@@ -75,16 +68,10 @@ export class EmbeddedWallet extends BaseWallet {
     const pxe = await initPxe(storeName, aztecNode)
     const wallet = new EmbeddedWallet(pxe, aztecNode, config)
     if (useSponsoredFPC) {
-      await wallet.registerContract({
-        instance: await getSponsoredFPCInstance(),
-        artifact: SponsoredFPCContractArtifact,
-      })
+      await wallet.registerContract(await getSponsoredFPCInstance(), SponsoredFPCContractArtifact)
     }
 
-    // Add filler account
     await wallet.createAccount()
-
-    // await wallet.registerSender(wallet.gatewayAddress);
     await wallet.registerContractWithoutInstance(wallet.gatewayAddress, AztecGateway7683ContractArtifact)
     logger.info(`[${storeName}] - Registered gateway contract at address ${config.gateway}`)
     for (const token of config.tokens) {
@@ -92,6 +79,20 @@ export class EmbeddedWallet extends BaseWallet {
       await wallet.registerContractWithoutInstance(tokenAddress, TokenContractArtifact)
       logger.info(`[${storeName}] - Registered token contract at address ${token.address}`)
     }
+
+    const fillerAddress = wallet.getAddress()
+    logger.info(`[${storeName}] - Syncing private state for filler account ${fillerAddress.toString()}...`)
+    for (const token of config.tokens) {
+      try {
+        const tokenAddress = AztecAddress.fromString(token.address)
+        const tokenContract = await TokenContract.at(tokenAddress, wallet)
+        await tokenContract.methods.sync_private_state().simulate({ from: fillerAddress })
+        logger.info(`[${storeName}] - ✓ Synced private state for token ${token.symbol}`)
+      } catch (err) {
+        logger.warn(`[${storeName}] - Failed to sync private state for token ${token.symbol}:`, err)
+      }
+    }
+
     return wallet
   }
 
@@ -141,7 +142,7 @@ export class EmbeddedWallet extends BaseWallet {
    */
   public setPublicAuthWit(
     from: AztecAddress,
-    messageHashOrIntent: Fr | Buffer | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
+    messageHashOrIntent: Fr | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
     authorized: boolean,
   ): Promise<SetPublicAuthwitContractInteraction> {
     return SetPublicAuthwitContractInteraction.create(this, from, messageHashOrIntent, authorized)
@@ -156,7 +157,7 @@ export class EmbeddedWallet extends BaseWallet {
    */
   public override async createAuthWit(
     from: AztecAddress,
-    messageHashOrIntent: Fr | Buffer | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
+    messageHashOrIntent: Fr | IntentInnerHash | CallIntent | ContractFunctionInteractionCallIntent,
   ): Promise<AuthWitness> {
     const account = await this.getAccountFromAddress(from)
     const chainInfo = await this.getChainInfo()
@@ -169,9 +170,8 @@ export class EmbeddedWallet extends BaseWallet {
   }
 
   private async createAccount(): Promise<AccountManager> {
-    // TODO: support more account types
-    const secret = Fr.fromHexString(process.env.AZTEC_SECRET_KEY as string)
-    const salt = Fr.fromHexString(process.env.AZTEC_SALT as string)
+    const secret = Fr.fromHexString(config.aztec.secretKey)
+    const salt = Fr.fromHexString(config.aztec.salt)
     const signingKey = deriveSigningKey(secret)
     const contract = new SchnorrAccountContract(signingKey)
 

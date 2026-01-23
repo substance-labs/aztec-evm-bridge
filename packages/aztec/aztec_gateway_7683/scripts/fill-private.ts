@@ -7,10 +7,11 @@ import { hexToBytes, padHex } from "viem"
 
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey, getNode } from "./utils.js"
-import { AztecGateway7683Contract } from "../src/artifacts/AztecGateway7683.js"
+import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { OrderData } from "../src/ts/test/OrderData.js"
 import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { poseidon2HashWithSeparator } from "@aztec/foundation/crypto/poseidon"
+import { GeneratorIndex } from "@aztec/constants"
 import { ContractInstanceWithAddress } from "@aztec/aztec.js/contracts"
 
 const [
@@ -23,7 +24,7 @@ const [
   l2EvmTokenAddress,
   l2Gateway7683Domain,
   fillerAddress,
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 async function main(): Promise<void> {
@@ -43,12 +44,9 @@ async function main(): Promise<void> {
     throw new Error(`Gateway contract instance not found for address ${aztecGateway7683Address}`)
   }
 
-  await wallet.registerContract({
-    instance: gatewayInstance as ContractInstanceWithAddress,
-    artifact: AztecGateway7683Contract.artifact,
-  })
+  await wallet.registerContract(gatewayInstance as ContractInstanceWithAddress, AztecGateway7683Contract.artifact)
 
-  const gateway = await AztecGateway7683Contract.at(AztecAddress.fromString(aztecGateway7683Address), wallet)
+  const gateway = AztecGateway7683Contract.at(AztecAddress.fromString(aztecGateway7683Address), wallet)
 
   // Register the token contract by fetching instance from node
   const tokenInstance = await node.getContract(AztecAddress.fromString(aztecTokenAddress))
@@ -56,17 +54,14 @@ async function main(): Promise<void> {
     throw new Error(`Token contract instance not found for address ${aztecTokenAddress}`)
   }
 
-  await wallet.registerContract({
-    instance: tokenInstance as ContractInstanceWithAddress,
-    artifact: TokenContract.artifact,
-  })
+  await wallet.registerContract(tokenInstance as ContractInstanceWithAddress, TokenContract.artifact)
 
-  const token = await TokenContract.at(AztecAddress.fromString(aztecTokenAddress), wallet)
+  const token = TokenContract.at(AztecAddress.fromString(aztecTokenAddress), wallet)
 
   const amountOut = 100n
   const nonce = Fr.random()
   const secret = Fr.random()
-  const secretHash = await poseidon2Hash([secret])
+  const secretHash = await poseidon2HashWithSeparator([secret], GeneratorIndex.SECRET_HASH)
 
   const orderData = new OrderData({
     sender: "0x0000000000000000000000000000000000000000000000000000000000000000",

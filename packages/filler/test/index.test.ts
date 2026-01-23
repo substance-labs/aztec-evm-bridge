@@ -10,6 +10,7 @@ import AztecWatcher from "../src/watchers/aztec.watcher.js"
 import logger from "../src/utils/logger.js"
 
 import { BalanceRepository } from "../src/repositories/BalanceRepository.js"
+import { ChainStateRepository } from "../src/repositories/ChainStateRepository.js"
 
 // Mock dependencies
 vi.mock("mongodb")
@@ -22,6 +23,7 @@ vi.mock("../src/watchers/evm.watcher.js")
 vi.mock("../src/watchers/aztec.watcher.js")
 vi.mock("../src/utils/logger.js")
 vi.mock("../src/repositories/BalanceRepository.js")
+vi.mock("../src/repositories/ChainStateRepository.js")
 vi.mock("viem/chains", () => ({
   sepolia: { id: 11155111, name: "Sepolia" },
   customChain: { id: 456, name: "Custom Chain" },
@@ -30,8 +32,20 @@ vi.mock("viem/chains", () => ({
 vi.mock("../src/config.js", () => ({
   config: {
     chains: {
-      aztec: {},
+      aztec: { name: "Aztec", id: "aztec", rpcUrl: "http://localhost:8080", tokens: [] },
+      baseSepolia: {
+        name: "Base Sepolia",
+        id: 84532,
+        rpcUrl: "http://localhost:8545",
+        gateway: "0x123",
+        tokens: [{ symbol: "USDC", address: "0xUSDC" }],
+      },
     },
+    mongo: { uri: "mongodb://localhost:27017", dbName: "filler" },
+    evm: { forwarderChainId: "11155111", privateKey: "0x123", forwarderRpcUrl: "http://localhost:8546" },
+    aztec: { isSandbox: false },
+    l2EvmChain: { id: 84532, name: "Base Sepolia" },
+    l1Chain: { id: 1, name: "Ethereum" },
   },
 }))
 
@@ -73,10 +87,13 @@ describe("index.ts", () => {
     }
     vi.mocked(MongoClient).mockImplementation(MockMongoClient as any)
 
-    vi.mocked(EmbeddedWallet.create).mockResolvedValue({} as any)
+    vi.mocked(EmbeddedWallet.create).mockResolvedValue({
+      getAddress: vi.fn().mockReturnValue({ toString: () => "0xAztec" }),
+    } as any)
 
     const MockMultiClient = class {
       getPublicClientByChain = vi.fn()
+      getWalletClientByChain = vi.fn().mockReturnValue({ account: { address: "0x123" } })
     }
     vi.mocked(MultiClient).mockImplementation(MockMultiClient as any)
 
@@ -117,6 +134,7 @@ describe("index.ts", () => {
     vi.mocked(OrderService).mockImplementation(MockOrderService as any)
     vi.mocked(SettlementService).mockImplementation(class {} as any)
     vi.mocked(BalanceRepository).mockImplementation(class {} as any)
+    vi.mocked(ChainStateRepository).mockImplementation(class {} as any)
 
     const { main } = await import("../src/index.js")
     await main()
@@ -133,6 +151,13 @@ describe("index.ts", () => {
     expect(mockEvmWatcherStart).toHaveBeenCalled()
     expect(AztecWatcher).toHaveBeenCalled()
     expect(mockAztecWatcherStart).toHaveBeenCalled()
+    expect(ChainStateRepository).toHaveBeenCalled()
+
+    // Verify watchers receive chainStateRepository
+    expect(evmWatcherOptions.chainStateRepository).toBeDefined()
+    expect(evmWatcherOptions.chainId).toBeDefined()
+    expect(aztecWatcherOptions.chainStateRepository).toBeDefined()
+    expect(aztecWatcherOptions.chainId).toBe("aztec")
 
     // Test callbacks
     const mockLog = { some: "log" }

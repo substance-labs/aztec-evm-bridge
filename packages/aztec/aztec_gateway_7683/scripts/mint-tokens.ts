@@ -15,7 +15,7 @@ const [
   recipientAddress,
   amountPrivate = "1000000000000000000",
   amountPublic = "1000000000000000000",
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 const main = async () => {
@@ -38,13 +38,19 @@ const main = async () => {
   logger.info(`Token address: ${tokenAddress}`)
 
   const token = await TokenContract.at(AztecAddress.fromString(tokenAddress), wallet)
+  const recipient = AztecAddress.fromString(recipientAddress)
+  const minterAddress = minterAccount.getAddress()
+
+  logger.info("Checking initial balances...")
+  const initialPublicBalance = await token.methods.balance_of_public(recipient).simulate({ from: minterAddress })
+  logger.info(`Initial public balance: ${initialPublicBalance.toString()}`)
 
   if (amountPrivate && BigInt(amountPrivate) > 0n) {
     logger.info(`Minting ${amountPrivate} tokens to private balance...`)
     await token.methods
-      .mint_to_private(AztecAddress.fromString(recipientAddress), BigInt(amountPrivate))
+      .mint_to_private(recipient, BigInt(amountPrivate))
       .send({
-        from: minterAccount.getAddress(),
+        from: minterAddress,
         fee: { paymentMethod },
       })
       .wait({
@@ -56,9 +62,9 @@ const main = async () => {
   if (amountPublic && BigInt(amountPublic) > 0n) {
     logger.info(`Minting ${amountPublic} tokens to public balance...`)
     await token.methods
-      .mint_to_public(AztecAddress.fromString(recipientAddress), BigInt(amountPublic))
+      .mint_to_public(recipient, BigInt(amountPublic))
       .send({
-        from: minterAccount.getAddress(),
+        from: minterAddress,
         fee: { paymentMethod },
       })
       .wait({
@@ -66,6 +72,12 @@ const main = async () => {
       })
     logger.info(`✅ Minted ${amountPublic} tokens to public balance`)
   }
+
+  logger.info("Checking final balances...")
+  const finalPublicBalance = await token.methods.balance_of_public(recipient).simulate({ from: minterAddress })
+  const finalPrivateBalance = await token.methods.balance_of_private(recipient).simulate({ from: recipient })
+  logger.info(`Final public balance: ${finalPublicBalance.toString()}`)
+  logger.info(`Final private balance: ${finalPrivateBalance.toString()}`)
 
   logger.info(`✅ All tokens successfully minted to ${recipientAddress}`)
 }

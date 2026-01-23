@@ -3,10 +3,11 @@ import { useMemo, useState } from 'react'
 import type { Hex } from 'viem'
 
 import { Bridge, OrderDataEncoder, type Order, type OrderData } from '@substancelabs/aztec-evm-bridge-sdk'
+import { Faucet } from './components/Faucet'
 
 import './App.css'
 
-type Tab = 'encode' | 'open'
+type Tab = 'encode' | 'open' | 'faucet'
 
 type OrderFormState = {
   sender: string
@@ -315,6 +316,9 @@ function App() {
           <button type="button" className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>
             Open Order
           </button>
+          <button type="button" className={tab === 'faucet' ? 'active' : ''} onClick={() => setTab('faucet')}>
+            🚰 Faucet
+          </button>
         </div>
       </header>
 
@@ -580,6 +584,8 @@ function App() {
           )}
         </>
       )}
+
+      {tab === 'faucet' && <Faucet />}
     </div>
   )
 }

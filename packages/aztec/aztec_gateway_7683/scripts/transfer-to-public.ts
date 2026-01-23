@@ -13,7 +13,7 @@ const [
   aztecSalt,
   tokenAddress,
   amount = "10000000000000000000", // 10 tokens by default
-  rpcUrl = "https://devnet.aztec-labs.com",
+  rpcUrl = "https://next.devnet.aztec-labs.com",
 ] = process.argv
 
 const main = async () => {

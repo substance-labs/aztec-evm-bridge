@@ -14,20 +14,56 @@ vi.mock("../../src/repositories/OrderRepository.js")
 vi.mock("../../src/artifacts/AztecGateway7683/AztecGateway7683.js")
 vi.mock("../../src/operations/EvmOrderFiller.js")
 vi.mock("../../src/operations/AztecOrderFiller.js")
-vi.mock("../../src/config.js", async () => {
-  const actual = await vi.importActual("../../src/config.js")
-  return {
-    ...actual,
-    getChainConfig: vi.fn(),
-    config: {
-      chains: {
-        aztec: {
-          gateway: "0x1111111111111111111111111111111111111111111111111111111111111111",
-        },
+vi.mock("../../src/config.js", () => ({
+  getChainConfig: vi.fn(),
+  ChainConfigType: {
+    EVM: "evm",
+    AZTEC: "aztec",
+  },
+  config: {
+    chains: {
+      aztec: {
+        gateway: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        rpcUrl: "http://localhost:8080",
+        tokens: [],
+      },
+      baseSepolia: {
+        type: "evm",
+        id: 84532,
+        name: "Base Sepolia",
+        rpcUrl: "https://sepolia.base.org",
+        gateway: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        tokens: [],
+        chain: { id: 84532 },
       },
     },
-  }
-})
+    evm: {
+      privateKey: "0x1234567890abcdef",
+      forwarderRpcUrl: "https://sepolia.base.org",
+      l2ChainId: "84532",
+      forwarderChainId: "11155111",
+      watchIntervalMs: 5000,
+      beaconApiUrl: "https://beacon-api.com",
+      opStackAnchorRegistryAddress: "0x3333333333333333333333333333333333333333",
+      aztecRollupContractL1Address: "0x4444444444444444444444444444444444444444",
+    },
+    aztec: {
+      secretKey: "secret",
+      salt: "salt",
+      proverEnabled: false,
+      watchIntervalMs: 5000,
+      isSandbox: false,
+    },
+    forwarderAddress: "0x5555555555555555555555555555555555555555",
+    balanceCheckIntervalMs: 60000,
+    mongo: {
+      uri: "mongodb://localhost:27017",
+      dbName: "filler",
+    },
+    l2EvmChain: { id: 84532 },
+    l1Chain: { id: 11155111 },
+  },
+}))
 
 describe("OrderService", () => {
   let service: OrderService

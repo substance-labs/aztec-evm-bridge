@@ -1,5 +1,5 @@
 import { encodePacked } from "viem"
-import { poseidon2Hash } from "@aztec/foundation/crypto"
+import { poseidon2Hash } from "@aztec/foundation/crypto/poseidon"
 import { Fr } from "@aztec/aztec.js/fields"
 
 export interface OrderDataParams {

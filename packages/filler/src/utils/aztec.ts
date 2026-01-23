@@ -6,6 +6,7 @@ import { createAztecNodeClient, type AztecNode } from "@aztec/aztec.js/node"
 
 import type { ContractInstanceWithAddress } from "@aztec/stdlib/contract"
 import type { ResolvedOrder } from "../types.js"
+import { config } from "../config.js"
 
 const SPONSORED_FPC_SALT = new Fr(0)
 
@@ -13,7 +14,7 @@ export const getPaymentMethod = async (): Promise<SponsoredFeePaymentMethod> =>
   new SponsoredFeePaymentMethod(await getSponsoredFPCAddress())
 
 export const getAztecNode = (): AztecNode => {
-  return createAztecNodeClient(process.env.AZTEC_RPC_URL || "https://devnet.aztec-labs.com")
+  return createAztecNodeClient(config.chains.aztec.rpcUrl)
 }
 
 export const parseOpenLog = (log1: Fr[], log2: Fr[]) => {

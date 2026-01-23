@@ -3,7 +3,7 @@
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { createAztecNodeClient } from "@aztec/aztec.js/node"
-import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/current/artifacts/Token.js"
+import { TokenContract, TokenContractArtifact } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 import { AccountWithSecretKey } from "@aztec/aztec.js/account"
 import { Wallet } from "@aztec/aztec.js/wallet"
 import { SponsoredFPCContractArtifact } from "@aztec/noir-contracts.js/SponsoredFPC"
@@ -16,20 +16,30 @@ import {
   OrderDataEncoder,
   setPublicAuthWit,
 } from "../utils"
-import { aztecSepolia, gatewayAddresses, PRIVATE_ORDER, PRIVATE_ORDER_WITH_HOOK } from "../constants"
-import type { FillOrderDetails, OrderData } from "../types"
+import { defaultChainsConfig, PRIVATE_ORDER, PRIVATE_ORDER_WITH_HOOK } from "../constants"
+import type { FillOrderDetails, InternalChain, OrderData } from "../types"
 
 const AZTEC_WAIT_TIMEOUT = 120000
 
 export class AztecOperations {
   aztecWallet?: Wallet
+  chainsConfig: Record<string, InternalChain>
   #wallet?: Wallet
   #account?: AccountWithSecretKey
   #aztecNodeClient?: ReturnType<typeof createAztecNodeClient>
   #aztecGatewayRegistered = false
 
-  constructor(aztecWallet?: Wallet) {
+  constructor(aztecWallet?: Wallet, chainsConfig: Record<string, InternalChain> = defaultChainsConfig) {
     this.aztecWallet = aztecWallet
+    this.chainsConfig = chainsConfig
+  }
+
+  private getAztecGatewayAddress(): Hex {
+    return this.chainsConfig.aztecDevnet.gatewayAddress
+  }
+
+  private getAztecRpcUrl(): string {
+    return this.chainsConfig.aztecDevnet.chain.rpcUrls.default.http[0]
   }
 
   /**
@@ -88,7 +98,7 @@ export class AztecOperations {
    * Register the Aztec gateway and FPC contracts if not already registered
    */
   async maybeRegisterAztecGateway(): Promise<void> {
-    const gateway = gatewayAddresses[aztecSepolia.id]
+    const gateway = this.getAztecGatewayAddress()
     if (!this.#aztecGatewayRegistered) {
       const wallet = await this.getAztecWallet()
 
@@ -97,14 +107,11 @@ export class AztecOperations {
       if (!instance) {
         throw new Error(`Contract instance not found for gateway address ${gateway}`)
       }
-      await wallet.registerContract({ instance, artifact: AztecGateway7683Contract.artifact })
+      await wallet.registerContract(instance, AztecGateway7683Contract.artifact)
 
       // Register the Sponsored FPC contract
-      const sponsoredFPC = await getSponsoredFPCInstance()
-      await wallet.registerContract({
-        instance: sponsoredFPC,
-        artifact: SponsoredFPCContractArtifact,
-      })
+      const sponsoredFPC = await getSponsoredFPCInstance(this.getAztecRpcUrl())
+      await wallet.registerContract(sponsoredFPC, SponsoredFPCContractArtifact)
 
       this.#aztecGatewayRegistered = true
     }
@@ -121,7 +128,7 @@ export class AztecOperations {
       throw new Error(`Token contract instance not found for address ${tokenAddress}`)
     }
 
-    await wallet.registerContract({ instance: tokenInstance, artifact: TokenContractArtifact })
+    await wallet.registerContract(tokenInstance, TokenContractArtifact)
     return TokenContract.at(AztecAddress.fromString(tokenAddress), wallet)
   }
 
@@ -130,8 +137,7 @@ export class AztecOperations {
    */
   async fillEvmToAztecOrder(details: FillOrderDetails): Promise<Hex> {
     const { orderId, orderData } = details
-    const chainOut = aztecSepolia
-    const gatewayOut = gatewayAddresses[chainOut.id]
+    const gatewayOut = this.getAztecGatewayAddress()
     const orderType = orderData.orderType
     const isPrivate = orderType === PRIVATE_ORDER || orderType === PRIVATE_ORDER_WITH_HOOK
     const orderDataEncoder = new OrderDataEncoder(orderData)
@@ -146,30 +152,39 @@ export class AztecOperations {
     const aztecGateway = await AztecGateway7683Contract.at(AztecAddress.fromString(gatewayOut), wallet)
 
     // Create auth witness
+    // Pre-compute the function call and use CallIntent to avoid instanceof check issues
     let witness
     if (isPrivate) {
-      witness = await account.createAuthWit({
-        caller: AztecAddress.fromString(gatewayOut),
-        action: token.methods.transfer_private_to_public(
+      const action = token
+        .withWallet(wallet)
+        .methods.transfer_private_to_public(
           account.getAddress(),
           AztecAddress.fromString(gatewayOut),
           orderData.amountOut,
           orderData.senderNonce,
-        ),
+        )
+      const call = await action.getFunctionCall()
+      witness = await account.createAuthWit({
+        caller: AztecAddress.fromString(gatewayOut),
+        call,
       } as any)
     } else {
+      const action = token
+        .withWallet(wallet)
+        .methods.transfer_public_to_public(
+          account.getAddress(),
+          AztecAddress.fromString(orderData.recipient),
+          orderData.amountOut,
+          orderData.senderNonce,
+        )
+      const call = await action.getFunctionCall()
       await (
         await setPublicAuthWit(
           wallet,
           account.getAddress(),
           {
             caller: AztecAddress.fromString(gatewayOut),
-            action: token.methods.transfer_public_to_public(
-              account.getAddress(),
-              AztecAddress.fromString(orderData.recipient),
-              orderData.amountOut,
-              orderData.senderNonce,
-            ),
+            call,
           },
           true,
         )
@@ -204,7 +219,7 @@ export class AztecOperations {
    * Claim a private order filled on Aztec
    */
   async claimPrivateOrder(orderId: Hex, secret: Hex, originData: Hex, fillerData: Hex): Promise<Hex> {
-    const gatewayOut = gatewayAddresses[aztecSepolia.id]
+    const gatewayOut = this.getAztecGatewayAddress()
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()
@@ -233,7 +248,7 @@ export class AztecOperations {
    * Refund an EVM to Aztec order
    */
   async refundEvmToAztecOrder(orderId: Hex, originData: Hex): Promise<Hex> {
-    const gatewayOut = gatewayAddresses[aztecSepolia.id]
+    const gatewayOut = this.getAztecGatewayAddress()
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()
@@ -259,7 +274,7 @@ export class AztecOperations {
    * Get order status from Aztec gateway
    */
   async getOrderStatus(orderId: Hex): Promise<number> {
-    const gatewayIn = gatewayAddresses[aztecSepolia.id]
+    const gatewayIn = this.getAztecGatewayAddress()
     await this.maybeRegisterAztecGateway()
 
     const wallet = await this.getAztecWallet()

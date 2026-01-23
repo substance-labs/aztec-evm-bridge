@@ -12,6 +12,10 @@ vi.mock("../src/config.js", () => ({
     type: "evm",
   }),
   isEvmChainConfig: vi.fn().mockReturnValue(true),
+  config: {
+    evm: { forwarderChainId: "11155111" },
+    aztec: { isSandbox: false },
+  },
 }))
 
 describe("EvmOrderFiller", () => {

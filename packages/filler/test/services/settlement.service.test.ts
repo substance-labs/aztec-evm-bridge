@@ -16,6 +16,13 @@ import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
 import { waitForTransactionReceipt } from "viem/actions"
 
+vi.mock("../../src/config.js", () => ({
+  config: {
+    evm: { forwarderChainId: "11155111" },
+    aztec: { isSandbox: false },
+  },
+}))
+
 let mockIsSandboxEnv = false
 
 // Mock dependencies
@@ -52,7 +59,7 @@ vi.mock("viem", async () => {
     bytesToHex: vi.fn().mockReturnValue("0xhex"),
   }
 })
-vi.mock("@aztec/foundation/crypto", () => ({
+vi.mock("@aztec/foundation/crypto/sha256", () => ({
   sha256ToField: vi.fn().mockReturnValue({ toString: () => "0xfield" }),
 }))
 vi.mock("@lodestar/types", () => ({

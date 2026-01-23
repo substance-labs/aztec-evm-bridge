@@ -47,6 +47,10 @@ vi.mock("../src/config.js", () => ({
     gateway: "0x0000000000000000000000000000000000000000000000000000000000000001",
   }),
   isTokenSupported: vi.fn().mockReturnValue(true),
+  config: {
+    evm: { forwarderChainId: "11155111" },
+    aztec: { isSandbox: false },
+  },
 }))
 
 describe("AztecOrderFiller", () => {

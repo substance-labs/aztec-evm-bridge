@@ -1,4 +1,3 @@
-import "dotenv/config"
 import * as chains from "viem/chains"
 import { MongoClient } from "mongodb"
 
@@ -8,6 +7,7 @@ import OrderService from "./services/order.service.js"
 import SettlementService from "./services/settlement.service.js"
 import { Monitor } from "./services/monitor.service.js"
 import { BalanceRepository } from "./repositories/BalanceRepository.js"
+import { ChainStateRepository } from "./repositories/ChainStateRepository.js"
 import { config, type AztecChainConfig } from "./config.js"
 import logger from "./utils/logger.js"
 import MultiClient from "./MultiClient.js"
@@ -17,26 +17,27 @@ import l2Gateway7683Abi from "./abis/l2Gateway7683.js"
 import type { Log } from "viem"
 import { EmbeddedWallet } from "./wallet/EmbeddedWallet.js"
 
-const AZTEC_GATEWAY_ADDRESS = process.env.AZTEC_GATEWAY_ADDRESS as `0x${string}`
-const L2_EVM_GATEWAY_ADDRESS = process.env.L2_EVM_GATEWAY_ADDRESS as `0x${string}`
-const FORWARDER_ADDRESS = process.env.FORWARDER_ADDRESS as `0x${string}`
-const FORWARDER_RPC_URL = process.env.FORWARDER_RPC_URL as string
-const PK_EVM = process.env.PK_EVM as `0x${string}`
-const EVM_L2_RPC_URL = process.env.EVM_L2_RPC_URL as string
-const BEACON_API_URL = process.env.BEACON_API_URL as string
-const EVM_WATCH_INTERVAL_TIME_MS = Number(process.env.EVM_WATCH_INTERVAL_TIME_MS as string)
-const AZTEC_WATCH_INTERVAL_TIME_MS = Number(process.env.AZTEC_WATCH_INTERVAL_TIME_MS as string)
-
 const main = async () => {
-  const mongoUri = (process.env.MONGO_DB_URI as string) || "mongodb://localhost:27017"
-  const mongoUser = process.env.MONGO_DB_USER as string | undefined
-  const mongoPassword = process.env.MONGO_DB_PASSWORD as string | undefined
-  const mongoAuthSource = process.env.MONGO_DB_AUTH_SOURCE as string | undefined
-  const mongoDbName = (process.env.MONGO_DB_NAME as string) || "filler"
+  const evmChain = config.chains.baseSepolia
+  const aztecChain = config.chains.aztec
+  logger.info("=== Filler Configuration ===")
+  logger.info(`EVM Chain: ${evmChain.name} (ID: ${evmChain.id})`)
+  logger.info(`EVM RPC URL: ${evmChain.rpcUrl}`)
+  logger.info(`EVM Gateway: ${evmChain.gateway}`)
+  logger.info(`EVM Tokens: ${evmChain.tokens.map((t) => `${t.symbol}:${t.address}`).join(", ")}`)
+  logger.info(`Aztec Chain: ${aztecChain.name} (ID: ${aztecChain.id})`)
+  logger.info(`Aztec RPC URL: ${aztecChain.rpcUrl}`)
+  logger.info(`Aztec Gateway: ${aztecChain.gateway}`)
+  logger.info(`Aztec Tokens: ${aztecChain.tokens.map((t) => `${t.symbol}:${t.address}`).join(", ")}`)
+  logger.info(`Forwarder Address: ${config.forwarderAddress}`)
+  logger.info(`Balance Check Interval: ${config.balanceCheckIntervalMs}ms`)
+  logger.info("============================")
 
-  const mongoClient = new MongoClient(mongoUri, {
-    ...(mongoUser && mongoPassword ? { auth: { username: mongoUser, password: mongoPassword } } : {}),
-    ...(mongoAuthSource ? { authSource: mongoAuthSource } : {}),
+  const mongoClient = new MongoClient(config.mongo.uri, {
+    ...(config.mongo.user && config.mongo.password
+      ? { auth: { username: config.mongo.user, password: config.mongo.password } }
+      : {}),
+    ...(config.mongo.authSource ? { authSource: config.mongo.authSource } : {}),
   })
 
   try {
@@ -45,9 +46,8 @@ const main = async () => {
     logger.error("Could not connect to MongoDB", err)
     process.exit(1)
   }
-  const db = mongoClient.db(mongoDbName)
+  const db = mongoClient.db(config.mongo.dbName)
 
-  // TODO: add possibility to register senders
   const orderWallet = await EmbeddedWallet.create(config.chains.aztec as AztecChainConfig, "filler-order-service-pxe")
   const settlementWallet = await EmbeddedWallet.create(
     config.chains.aztec as AztecChainConfig,
@@ -58,21 +58,24 @@ const main = async () => {
     "filler-monitor-service-pxe",
   )
 
-  const l2EvmChain = (Object.values(chains) as chains.Chain[]).find(
-    ({ id }) => id.toString() === (process.env.EVM_L2_CHAIN_ID as string),
-  ) as chains.Chain
-  const l1Chain = (Object.values(chains) as chains.Chain[]).find(
-    ({ id }) => id.toString() === (process.env.FORWARDER_CHAIN_ID as string),
-  ) as chains.Chain
+  const l2EvmChain = config.l2EvmChain
+  const l1Chain = config.l1Chain
 
   const evmMultiClient = new MultiClient({
     chains: [l2EvmChain, chains.sepolia],
-    privateKey: PK_EVM,
+    privateKey: config.evm.privateKey,
     rpcUrls: {
-      [l2EvmChain.id]: EVM_L2_RPC_URL,
-      [l1Chain.id]: FORWARDER_RPC_URL,
+      [l2EvmChain.id]: evmChain.rpcUrl,
+      [l1Chain.id]: config.evm.forwarderRpcUrl,
     },
   })
+
+  const evmFillerAddress = evmMultiClient.getWalletClientByChain(l2EvmChain).account?.address
+  const aztecFillerAddress = orderWallet.getAddress().toString()
+  logger.info("=== Filler Addresses ===")
+  logger.info(`EVM Filler Address: ${evmFillerAddress}`)
+  logger.info(`Aztec Filler Address: ${aztecFillerAddress}`)
+  logger.info("========================")
 
   const orderService = new OrderService({
     aztecWallet: orderWallet,
@@ -82,19 +85,20 @@ const main = async () => {
   })
 
   new SettlementService({
-    aztecGatewayAddress: AZTEC_GATEWAY_ADDRESS,
+    aztecGatewayAddress: aztecChain.gateway,
     aztecWallet: settlementWallet,
-    beaconApiUrl: BEACON_API_URL,
+    beaconApiUrl: config.evm.beaconApiUrl,
     db,
     evmMultiClient,
-    forwarderAddress: FORWARDER_ADDRESS,
+    forwarderAddress: config.forwarderAddress,
     l1Chain,
     logger,
     l2EvmChain,
-    l2EvmGatewayAddress: L2_EVM_GATEWAY_ADDRESS,
+    l2EvmGatewayAddress: evmChain.gateway,
   })
 
   const balanceRepository = new BalanceRepository(db)
+  const chainStateRepository = new ChainStateRepository(db)
   const monitor = new Monitor(evmMultiClient, monitorWallet, balanceRepository, config, logger)
   monitor.start()
 
@@ -102,10 +106,12 @@ const main = async () => {
     service: `${l2EvmChain.name.replace(/\s+/g, "")}Watcher`,
     logger,
     client: evmMultiClient.getPublicClientByChain(l2EvmChain),
-    contractAddress: L2_EVM_GATEWAY_ADDRESS,
+    contractAddress: evmChain.gateway,
     abi: l2Gateway7683Abi,
     eventName: "Open",
-    watchIntervalTimeMs: EVM_WATCH_INTERVAL_TIME_MS,
+    watchIntervalTimeMs: config.evm.watchIntervalMs,
+    chainStateRepository,
+    chainId: `evm-${l2EvmChain.id}`,
     onLogs: async (logs: Log[]) => {
       for (const log of logs) {
         console.log("Filling order from L2 EVM log:", log)
@@ -118,9 +124,11 @@ const main = async () => {
     service: "AztecWatcher",
     logger,
     wallet: orderWallet,
-    contractAddress: AZTEC_GATEWAY_ADDRESS,
+    contractAddress: aztecChain.gateway,
     eventName: "Open",
-    watchIntervalTimeMs: AZTEC_WATCH_INTERVAL_TIME_MS,
+    watchIntervalTimeMs: config.aztec.watchIntervalMs,
+    chainStateRepository,
+    chainId: "aztec",
     onLogs: async (logs) => {
       for (const log of logs) {
         await orderService.fillOrderFromAztecLog(log, "Base Sepolia")

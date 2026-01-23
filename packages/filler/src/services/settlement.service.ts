@@ -1,4 +1,4 @@
-import { sha256ToField } from "@aztec/foundation/crypto"
+import { sha256ToField } from "@aztec/foundation/crypto/sha256"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { EthAddress } from "@aztec/aztec.js/addresses"
 import { Fr } from "@aztec/aztec.js/fields"
@@ -36,6 +36,7 @@ import type { BaseServiceOpts } from "./base.service.js"
 import type { Order } from "../types.js"
 import type MultiClient from "../MultiClient.js"
 import type { EmbeddedWallet } from "../wallet/EmbeddedWallet.js"
+import { BlockNumber } from "@aztec/foundation/branded-types"
 
 const { BeaconBlock } = ssz.fulu
 
@@ -253,26 +254,38 @@ class SettlementService extends BaseService {
       const l1Client = this.evmMultiClient.getClientByChain(this.l1Chain)
       let provenBlockNumber: bigint
       try {
+        // Try getProvenBlockNumber first
         provenBlockNumber = (await l1Client.publicClient.readContract({
           address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
           args: [],
           abi: rollupAbi,
           functionName: "getProvenBlockNumber",
         })) as bigint
-      } catch (error) {
-        if (IS_SANDBOX_ENV) {
-          this.logger.warn(
-            `skipping forwardSettleToL2 for order ${order.orderId} because getProvenBlockNumber is unavailable: ${String(
-              (error as Error).message ?? error,
-            )}`,
-          )
-          return
-        }
+      } catch (provenError) {
+        // Fallback to getTips, which returns [pending, proven]
+        try {
+          const tips = (await l1Client.publicClient.readContract({
+            address: AZTEC_ROLLUP_CONTRACT_L1_ADDRESS,
+            args: [],
+            abi: rollupAbi,
+            functionName: "getTips",
+          })) as [bigint, bigint]
+          provenBlockNumber = tips[1]
+        } catch (error) {
+          if (IS_SANDBOX_ENV) {
+            this.logger.warn(
+              `skipping forwardSettleToL2 for order ${order.orderId} because proven block number is unavailable: ${String(
+                (error as Error).message ?? error,
+              )}`,
+            )
+            return
+          }
 
-        provenBlockNumber = orderSettlementBlockNumber
-        this.logger.error(
-          `Failed to get proven block number for order ${order.orderId}: ${String((error as Error).message ?? error)}`,
-        )
+          provenBlockNumber = orderSettlementBlockNumber
+          this.logger.error(
+            `Failed to get proven block number for order ${order.orderId}: ${String((error as Error).message ?? error)}`,
+          )
+        }
       }
 
       if (orderSettlementBlockNumber > provenBlockNumber) {
@@ -286,7 +299,7 @@ class SettlementService extends BaseService {
 
       witness = await computeL2ToL1MembershipWitness(
         this.aztecWallet.getAztecNode(),
-        parseInt(orderSettlementBlockNumber.toString()),
+        BlockNumber.fromBigInt(orderSettlementBlockNumber),
         l2ToL1Message,
       )
 
