@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
     "deploy:bridge": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/deploy-bridge.ts",
     "deploy:tokens": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/deploy-tokens.ts",
     "lint": "eslint .",

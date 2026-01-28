@@ -11,6 +11,7 @@ yarn changeset
 ```
 
 This will prompt you to:
+
 1. Select which packages have changed
 2. Choose the version bump type (major, minor, patch)
 3. Write a summary of the changes
@@ -19,9 +20,11 @@ The changeset will be saved in `.changeset/` directory and should be committed w
 
 ## Version Bump Types
 
-- **Major** (1.0.0 → 2.0.0): Breaking changes
-- **Minor** (1.0.0 → 1.1.0): New features, backwards compatible
-- **Patch** (1.0.0 → 1.0.1): Bug fixes, backwards compatible
+| Type | Version Change | When to Use |
+| ---- | -------------- | ----------- |
+| **Major** | 1.0.0 → 2.0.0 | Breaking changes |
+| **Minor** | 1.0.0 → 1.1.0 | New features, backwards compatible |
+| **Patch** | 1.0.0 → 1.0.1 | Bug fixes, backwards compatible |
 
 ## Releasing
 
@@ -32,6 +35,7 @@ yarn version
 ```
 
 This will:
+
 - Consume all changesets
 - Update package versions
 - Update CHANGELOG.md
@@ -53,6 +57,7 @@ yarn release
 ```
 
 This will:
+
 - Build all packages
 - Publish to npm
 - Create git tags
@@ -79,7 +84,7 @@ Or set up an `.npmrc` file with your authentication token:
 
 ## CI/CD Integration
 
-For automated releases, you can use GitHub Actions. Example workflow:
+For automated releases, you can use GitHub Actions:
 
 ```yaml
 name: Release
@@ -102,9 +107,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'yarn'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: yarn install --immutable
 
       - name: Create Release Pull Request or Publish
@@ -116,10 +122,12 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-## Current Packages
+## Published Packages
 
-- `@substancelabs/aztec-evm-bridge-sdk` - The main SDK package (public)
+The following packages are published to npm:
 
-Ignored packages (not published):
-- `@substancelabs/aztec-gateway-7683` - Aztec contracts
-- `@substancelabs/filler` - Filler service
+| Package | npm Name |
+| ------- | -------- |
+| `packages/sdk` | `@substancelabs/aztec-evm-bridge-sdk` |
+
+Other packages (`deploy`, `filler`, `e2e`, `bridge-app`) are private and not published.

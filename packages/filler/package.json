@@ -1,18 +1,20 @@
 {
   "name": "@substancelabs/filler",
   "version": "0.0.1",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
+  "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
     "start": "node dist/index.js",
-    "dev": " NODE_NO_WARNINGS=1 node --loader ts-node/esm src/index.ts",
+    "dev": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/index.ts",
     "mongo:start": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker start $name 2>/dev/null || docker run -d --name $name -p $port:27017 -v $(pwd)/.mongo-data/$port:/data/db mongo:latest",
     "mongo:stop": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker stop $name",
     "mongo:remove": "port=$(grep '^MONGO_PORT=' .env | cut -d '=' -f2); port=${port:-27017}; name=aztec-filler-mongo-$port; docker stop $name 2>/dev/null && docker rm $name",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
+    "format": "prettier --write \"**/*.{js,json,md,ts,yml}\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

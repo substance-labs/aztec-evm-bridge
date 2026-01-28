@@ -5,11 +5,9 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
     "test": "vitest run",
     "test:bridge": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/test-bridge.ts",
-    "deploy:bridge": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/deploy-bridge.ts",
-    "deploy:tokens": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/deploy-tokens.ts",
-    "mint:aztec": "NODE_NO_WARNINGS=1 node --loader ts-node/esm src/mint-aztec-tokens.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md,ts}\""

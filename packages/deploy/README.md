@@ -1,20 +1,27 @@
 # @substancelabs/deploy
 
-Deployment scripts for the Aztec EVM Bridge.
+Deployment scripts for the Aztec-EVM Bridge infrastructure.
+
+## Scripts
+
+| Command | Description |
+| ------- | ----------- |
+| `yarn deploy:bridge` | Deploy full bridge infrastructure |
+| `yarn deploy:tokens` | Deploy test tokens |
 
 ## Usage
 
-### Deploy Bridge Contracts
+### Deploy Bridge
 
-Deploys the full bridge infrastructure (L2Gateway, Forwarder, AztecGateway):
+Deploy all bridge contracts (Poseidon2, L2Gateway, Forwarder, AztecGateway):
 
 ```bash
 yarn deploy:bridge
 ```
 
-### Deploy Test Tokens
+### Deploy Tokens
 
-Deploys test tokens on both EVM and Aztec:
+Deploy test tokens on both chains:
 
 ```bash
 # Deploy both EVM and Aztec tokens
@@ -29,53 +36,15 @@ yarn deploy:tokens aztec
 
 ## Environment Variables
 
-### Required for Bridge Deployment
-
-| Variable                   | Description               |
-| -------------------------- | ------------------------- |
-| `PRIVATE_KEY`              | EVM deployer private key  |
-| `PERMIT2`                  | Permit2 contract address  |
-| `AZTEC_INBOX`              | Aztec inbox address       |
-| `AZTEC_OUTBOX`             | Aztec outbox address      |
-| `L2_ANCHOR_STATE_REGISTRY` | L2 anchor state registry  |
-| `L2_RPC_URL`               | Base Sepolia RPC URL      |
-| `L1_RPC_URL`               | Eth Sepolia RPC URL       |
-| `AZTEC_SECRET_KEY`         | Aztec deployer secret key |
-| `AZTEC_SALT`               | Aztec deployer salt       |
-| `AZTEC_RPC_URL`            | Aztec RPC URL             |
-| `L2_CHAIN_ID`              | L2 chain ID               |
-
-### Optional
-
-| Variable            | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `POSEIDON2`         | Existing Poseidon2 library address (skip deployment) |
-| `VERIFY_CONTRACTS`  | Set to `true` to verify on block explorers           |
-| `ETHERSCAN_API_KEY` | Etherscan API key for verification                   |
-| `BASESCAN_API_KEY`  | Basescan API key for verification                    |
-
-### Required for Token Deployment
-
-| Variable           | Description               |
-| ------------------ | ------------------------- |
-| `PRIVATE_KEY`      | EVM deployer private key  |
-| `L2_RPC_URL`       | Base Sepolia RPC URL      |
-| `AZTEC_SECRET_KEY` | Aztec deployer secret key |
-| `AZTEC_SALT`       | Aztec deployer salt       |
-| `AZTEC_RPC_URL`    | Aztec RPC URL             |
-
-### Optional for Token Distribution
-
-| Variable                 | Description                                 |
-| ------------------------ | ------------------------------------------- |
-| `EVM_E2E_TEST_ADDRESS`   | EVM address to receive test tokens          |
-| `EVM_FILLER_ADDRESS`     | EVM filler address to receive test tokens   |
-| `AZTEC_E2E_TEST_ADDRESS` | Aztec address to receive test tokens        |
-| `AZTEC_FILLER_ADDRESS`   | Aztec filler address to receive test tokens |
+See the [Deployment Guide](../../docs/deployment.md) for required environment variables.
 
 ## Output
 
-Deployments are saved to `deployments/` directory with timestamps:
+Deployments are saved to `deployments/` directory:
 
 - `deploy_YYYY-MM-DD_HH-MM-SS.json` - Bridge deployment
 - `tokens_deploy_YYYY-MM-DD_HH-MM-SS.json` - Token deployment
+
+## Documentation
+
+- [Full Deployment Guide](../../docs/deployment.md)
