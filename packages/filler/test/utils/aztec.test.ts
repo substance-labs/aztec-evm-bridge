@@ -23,7 +23,7 @@ vi.mock("../../src/config.js", () => ({
   config: {
     chains: {
       aztec: {
-        rpcUrl: "https://next.devnet.aztec-labs.com",
+        rpcUrl: "https://devnet-6.aztec-labs.com",
       },
     },
   },
@@ -129,20 +129,20 @@ describe("Aztec Utils", () => {
   describe("async functions", () => {
     beforeEach(() => {
       vi.clearAllMocks()
-      process.env.AZTEC_RPC_URL = "https://next.devnet.aztec-labs.com"
+      process.env.AZTEC_RPC_URL = "https://devnet-6.aztec-labs.com"
     })
 
     it("should getAztecNode", async () => {
       const node = await getAztecNode()
       expect(node).toBeDefined()
-      expect(createAztecNodeClient).toHaveBeenCalledWith("https://next.devnet.aztec-labs.com")
+      expect(createAztecNodeClient).toHaveBeenCalledWith("https://devnet-6.aztec-labs.com")
     })
 
     it("should getAztecNode with default URL", async () => {
       delete process.env.AZTEC_RPC_URL
       const node = await getAztecNode()
       expect(node).toBeDefined()
-      expect(createAztecNodeClient).toHaveBeenCalledWith("https://next.devnet.aztec-labs.com")
+      expect(createAztecNodeClient).toHaveBeenCalledWith("https://devnet-6.aztec-labs.com")
     })
 
     it("should getSponsoredFPCInstance", async () => {
