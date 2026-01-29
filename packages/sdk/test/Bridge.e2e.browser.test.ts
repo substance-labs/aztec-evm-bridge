@@ -21,7 +21,11 @@ if (!(env as any).EVM_TOKEN_ADDRESS) {
 
 const TOKEN_ON_AZTEC_ADDRESS: `0x${string}` = (env as any).AZTEC_TOKEN_ADDRESS as Hex
 const TOKEN_ON_BASE_ADDRESS: `0x${string}` = (env as any).EVM_TOKEN_ADDRESS as Hex
-const DEFAULT_AZTEC_NODE_URL = (env as any).AZTEC_NODE_URL ?? "https://next.devnet.aztec-labs.com"
+
+if (!(env as any).AZTEC_NODE_URL) {
+  throw new Error("AZTEC_NODE_URL environment variable is required")
+}
+const DEFAULT_AZTEC_NODE_URL = (env as any).AZTEC_NODE_URL as string
 
 const REQUIRED_ENV_VARS = ["EVM_PK", "AZTEC_SECRET_KEY", "AZTEC_KEY_SALT"] as const
 const missingEnvVar = REQUIRED_ENV_VARS.find((key) => !env[key])

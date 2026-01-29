@@ -50,10 +50,13 @@ const setup = async () => {
   if (!process.env.AZTEC_SECRET_KEY || !process.env.AZTEC_KEY_SALT) {
     throw new Error("AZTEC_SECRET_KEY and AZTEC_KEY_SALT must be set")
   }
+  if (!process.env.AZTEC_RPC_URL) {
+    throw new Error("AZTEC_RPC_URL must be set")
+  }
 
   cleanupPxeStore()
 
-  const aztecNodeUrl = "https://next.devnet.aztec-labs.com"
+  const aztecNodeUrl = process.env.AZTEC_RPC_URL
   const aztecNode = createAztecNodeClient(aztecNodeUrl)
 
   const testWallet = await TestWallet.create(aztecNode, {

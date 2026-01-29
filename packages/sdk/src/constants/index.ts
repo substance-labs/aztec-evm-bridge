@@ -44,10 +44,10 @@ export const aztecSepolia = {
   name: "Aztec Sepolia",
   rpcUrls: {
     "aztec-devnet": {
-      http: ["https://next.devnet.aztec-labs.com"],
+      http: [process.env.AZTEC_RPC_URL || "https://devnet-6.aztec-labs.com"],
     },
     default: {
-      http: ["https://next.devnet.aztec-labs.com"],
+      http: [process.env.AZTEC_RPC_URL || "https://devnet-6.aztec-labs.com"],
     },
   },
 }
