@@ -62,8 +62,8 @@ jobs:
         export MONGO_PORT=27017
         export EVM_WATCH_INTERVAL_TIME_MS=5000
         export AZTEC_WATCH_INTERVAL_TIME_MS=5000
-        export DEPLOYMENT_JSON_PATH=../../deployments/deploy_2026-01-18_21-39-54.json
-        export TOKENS_JSON_PATH=../../deployments/tokens_deploy_2026-01-18_23-09-43.json
+        export DEPLOYMENT_JSON_PATH=../../deployments/deploy_2026-01-29_16-47-42.json
+        export TOKENS_JSON_PATH=../../deployments/tokens_deploy_2026-01-29_16-49-15.json
         export OP_STACK_ANCHOR_REGISTRY_ADDRESS=0x0729957c92A1F50590A84cb2D65D761093f3f8eB
         export AZTEC_ROLLUP_CONTRACT_L1_ADDRESS=0x5d84b64b0b2f468df065d8cf01fff88a73238a13
         export AZTEC_SANDBOX=false
