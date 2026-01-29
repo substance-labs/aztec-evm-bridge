@@ -41,7 +41,23 @@ const result = await bridge.openOrder({
 | `yarn test` | Run all tests |
 | `yarn test:node` | Run Node.js tests |
 | `yarn test:browser` | Run browser tests |
+| `yarn test:e2e` | Run E2E tests (requires filler running) |
+| `yarn test:browser:e2e` | Run browser E2E tests (requires filler running) |
 | `yarn test:coverage` | Run with coverage |
+
+## E2E Tests
+
+E2E tests require the filler service to be running. See the [Filler Guide](../../docs/filler.md) for setup instructions.
+
+```bash
+# Start the filler first
+cd packages/filler
+docker compose up -d
+
+# Then run SDK E2E tests
+cd packages/sdk
+yarn test:e2e
+```
 
 ## Features
 

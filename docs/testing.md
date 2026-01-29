@@ -120,10 +120,16 @@ Run unit tests:
 yarn test:unit
 ```
 
-Run E2E tests:
+Run E2E tests (requires filler running):
 
 ```bash
 yarn test:e2e
+```
+
+Run browser E2E tests (requires filler running):
+
+```bash
+yarn test:browser:e2e
 ```
 
 Generate coverage:
@@ -131,6 +137,8 @@ Generate coverage:
 ```bash
 yarn test:coverage
 ```
+
+> **Note**: SDK E2E tests require the filler service to be running. See [Filler Guide](./filler.md) for setup.
 
 ## End-to-End Testing
 
