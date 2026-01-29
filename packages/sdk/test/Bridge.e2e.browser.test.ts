@@ -22,10 +22,10 @@ if (!(env as any).EVM_TOKEN_ADDRESS) {
 const TOKEN_ON_AZTEC_ADDRESS: `0x${string}` = (env as any).AZTEC_TOKEN_ADDRESS as Hex
 const TOKEN_ON_BASE_ADDRESS: `0x${string}` = (env as any).EVM_TOKEN_ADDRESS as Hex
 
-if (!(env as any).AZTEC_NODE_URL) {
-  throw new Error("AZTEC_NODE_URL environment variable is required")
+if (!(env as any).AZTEC_RPC_URL) {
+  throw new Error("AZTEC_RPC_URL environment variable is required")
 }
-const DEFAULT_AZTEC_NODE_URL = (env as any).AZTEC_NODE_URL as string
+const DEFAULT_AZTEC_RPC_URL = (env as any).AZTEC_RPC_URL as string
 
 const REQUIRED_ENV_VARS = ["EVM_PK", "AZTEC_SECRET_KEY", "AZTEC_KEY_SALT"] as const
 const missingEnvVar = REQUIRED_ENV_VARS.find((key) => !env[key])
@@ -40,7 +40,7 @@ if (!canRunE2E) {
 const describeE2E = canRunE2E ? describe : describe.skip
 
 async function setupBrowserAztecAccount() {
-  const aztecNode = createAztecNodeClient(DEFAULT_AZTEC_NODE_URL)
+  const aztecNode = createAztecNodeClient(DEFAULT_AZTEC_RPC_URL)
 
   const secretKey = Fr.fromHexString(env.AZTEC_SECRET_KEY as Hex)
   const salt = Fr.fromHexString(env.AZTEC_KEY_SALT as Hex)
