@@ -1,0 +1,19 @@
+{
+  "L2Gateway7683": {
+    "address": "0xF85999B8b9F788b152F566BAf7AB98e0eB7e35a8",
+    "deployTx": "0x1ea87b373d5ad0d947b017790851b8b9f0200cbf78487c8b1180c38a9a6f52ed",
+    "configTxs": [
+      "0x8fc5d0dd82dba21f170ea70c377a822d5b3a3d35830e6c4a301e0f17d85561c6",
+      "0x2cb39f3230c4835609fb4c367a3916672dca5d59013d25f2b2cfa946e8c87fde"
+    ]
+  },
+  "Forwarder": {
+    "address": "0x88FB598D81e9e10Bd017e3d5379337eA48aFF00f",
+    "deployTx": "0xb7056ca1af6df0238e2fec370c2258596bb940064cb2808538072e1d47f2c7a0",
+    "configTx": "0xb18654c49cbe2ecc655fb4c280c9966aefbd80e8a5ae74325d046eeb78704301"
+  },
+  "AztecGateway7683": {
+    "address": "0x23c8135aef4f389ee914a0d8671904c97c5fae1ba766c8ece012510286a08ec1",
+    "deployTx": "0x10a9d11642eae388d66434ce02142b3163e708f309395b36b35e9c51c9dba786"
+  }
+}
