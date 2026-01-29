@@ -100,6 +100,8 @@ async function main(): Promise<void> {
     })
 
   logger.info(`private order opened: ${receipt.txHash.toString()}`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

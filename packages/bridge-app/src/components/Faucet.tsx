@@ -15,8 +15,10 @@ const FAUCET_CONFIG = {
   aztecTokenAddress: import.meta.env.VITE_AZTEC_TOKEN_ADDRESS || '0x0e334ca55bc06810c70f9cba8a341d79f3cbb29b8d55eb0f877fc3f463e507f1',
   evmTokenAddress: import.meta.env.VITE_EVM_TOKEN_ADDRESS || '0xF2D41ea5bD5b3A686a2aDB387EbF83913BDAA055',
   // RPC URLs
-  aztecRpcUrl: import.meta.env.VITE_AZTEC_RPC_URL || 'https://next.devnet.aztec-labs.com',
+  aztecRpcUrl: import.meta.env.VITE_AZTEC_RPC_URL,
   evmRpcUrl: import.meta.env.VITE_EVM_RPC_URL || 'https://base-sepolia.g.alchemy.com/v2/p9Kt1j_0O5cvXjx48tyA9',
+  // Sponsored FPC address
+  sponsoredFpcAddress: import.meta.env.VITE_SPONSORED_FPC_ADDRESS,
   // Minter credentials from environment variables
   aztecMinterSecretKey: import.meta.env.VITE_AZTEC_MINTER_SECRET_KEY || '',
   aztecMinterSalt: import.meta.env.VITE_AZTEC_MINTER_SALT || '',
@@ -164,7 +166,7 @@ export function Faucet() {
       const minterAccount = await testWallet.createSchnorrAccount(secretKey, salt)
 
       // Setup sponsored fee payment
-      const fpcAddress = AztecAddress.fromString('0x0c0b78c19dc07e4779c3e7109be3a84c89a612c96fde85e53f6d66f3fb42fd75')
+      const fpcAddress = AztecAddress.fromString(FAUCET_CONFIG.sponsoredFpcAddress as Hex)
       const paymentMethod = new SponsoredFeePaymentMethod(fpcAddress)
 
       setStatus('Loading token contract...')

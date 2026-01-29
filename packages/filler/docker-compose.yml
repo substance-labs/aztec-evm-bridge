@@ -71,6 +71,8 @@ services:
     volumes:
       # Mount deployment files directory
       - ../../deployments:/app/deployments:ro
+      # Mount logs directory for persistence
+      - ./logs:/app/packages/filler/logs
 
 volumes:
   mongodb_data:

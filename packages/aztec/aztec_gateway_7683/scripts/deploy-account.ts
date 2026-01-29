@@ -7,7 +7,7 @@ import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet } from "./utils.js"
 
-const [, , aztecSecretKey, aztecSalt, rpcUrl = "https://next.devnet.aztec-labs.com"] = process.argv
+const [, , aztecSecretKey, aztecSalt, rpcUrl = process.env.AZTEC_RPC_URL] = process.argv
 
 async function main(): Promise<void> {
   const logger = createLogger("deploy:account")

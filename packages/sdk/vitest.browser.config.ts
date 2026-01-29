@@ -108,6 +108,7 @@ export default defineConfig({
       "stream-browserify",
       "util",
       "path-browserify",
+      "path",
       "vite-plugin-node-polyfills/shims/buffer",
       "vite-plugin-node-polyfills/shims/global",
       "vite-plugin-node-polyfills/shims/process",

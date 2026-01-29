@@ -24,7 +24,7 @@ const [
   l2EvmTokenAddress,
   l2Gateway7683Domain,
   fillerAddress,
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
 ] = process.argv
 
 async function main(): Promise<void> {
@@ -108,6 +108,8 @@ async function main(): Promise<void> {
     })
 
   logger.info(`order filled: ${receipt.txHash.toString()}`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

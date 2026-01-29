@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react"
 import { nodePolyfills } from "vite-plugin-node-polyfills"
 import wasm from "vite-plugin-wasm"
 import topLevelAwait from "vite-plugin-top-level-await"
+import { fileURLToPath } from "url"
+import path from "path"
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [
@@ -17,6 +21,8 @@ export default defineConfig({
         global: true,
         process: true,
       },
+      // Use protocol imports to avoid resolution issues in monorepos
+      protocolImports: true,
     }),
   ],
   assetsInclude: ["**/*.wasm"],
@@ -28,6 +34,19 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Fix vite-plugin-node-polyfills shims resolution in monorepo
+      "vite-plugin-node-polyfills/shims/buffer": path.resolve(
+        __dirname,
+        "node_modules/vite-plugin-node-polyfills/shims/buffer/dist/index.js",
+      ),
+      "vite-plugin-node-polyfills/shims/global": path.resolve(
+        __dirname,
+        "node_modules/vite-plugin-node-polyfills/shims/global/dist/index.js",
+      ),
+      "vite-plugin-node-polyfills/shims/process": path.resolve(
+        __dirname,
+        "node_modules/vite-plugin-node-polyfills/shims/process/dist/index.js",
+      ),
       // Additional polyfills for blockchain dependencies
       crypto: "crypto-browserify",
       stream: "stream-browserify",
@@ -106,6 +125,9 @@ export default defineConfig({
       "@tanstack/react-query",
       "wagmi",
       "viem",
+      "vite-plugin-node-polyfills/shims/buffer",
+      "vite-plugin-node-polyfills/shims/global",
+      "vite-plugin-node-polyfills/shims/process",
     ],
     exclude: [
       "@aztec/bb.js",

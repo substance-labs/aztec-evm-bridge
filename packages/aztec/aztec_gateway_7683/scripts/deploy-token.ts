@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { createLogger } from "@aztec/foundation/log"
 import type { DeployOptions } from "@aztec/aztec.js/contracts"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
@@ -6,16 +7,8 @@ import { writeFileSync, mkdirSync } from "fs"
 import { getSponsoredFPCAddress } from "./fpc.js"
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
-const [
-  ,
-  ,
-  aztecSecretKey,
-  aztecSalt,
-  tokenName,
-  tokenSymbol,
-  tokenDecimals,
-  rpcUrl = "https://next.devnet.aztec-labs.com",
-] = process.argv
+const [, , aztecSecretKey, aztecSalt, tokenName, tokenSymbol, tokenDecimals, rpcUrl = process.env.AZTEC_RPC_URL] =
+  process.argv
 
 const main = async () => {
   const logger = createLogger("deploy-token")
@@ -65,6 +58,8 @@ const main = async () => {
     ),
   )
   logger.info("Token address saved to deployments/token_deployment.json")
+
+  process.exit(0)
 }
 
 main().catch((err) => {

@@ -1,44 +1,66 @@
-# Filler
+# @substancelabs/filler
 
-## �� Installation
+Order filling service for the Aztec-EVM Bridge.
 
-Clone the repository and install dependencies:
+The filler monitors cross-chain orders and fulfills them by providing liquidity on destination chains.
+
+## Quick Start
 
 ```bash
-git clone https://github.com/substance-labs/aztec-evm-bridge
-cd aztec-evm-bridge/packages/filler
-nvm use
+# Install dependencies
 yarn install
-```
 
-Copy the sample environment file and set the required values:
-
-```bash
+# Copy environment template
 cp .env.example .env
-# edit .env before running the filler
-```
 
-## 🚀 Development
-
-To start the dev server with hot reload:
-
-```bash
+# Start development server
 yarn dev
 ```
 
-## 🧱 Build
+## Scripts
 
-To compile the TypeScript source into `dist/`:
+| Command | Description |
+| ------- | ----------- |
+| `yarn dev` | Start with hot reload |
+| `yarn build` | Build for production |
+| `yarn start` | Run production build |
+| `yarn test` | Run unit tests |
+| `yarn test:coverage` | Run tests with coverage |
+| `yarn mongo:start` | Start local MongoDB |
+| `yarn mongo:stop` | Stop local MongoDB |
+
+## Docker
+
+Run with Docker Compose:
 
 ```bash
-yarn build
+docker compose up -d
 ```
 
-Start the compiled version with:
+See logs:
 
 ```bash
-yarn start
+docker compose logs -f filler
 ```
 
-For operational walkthroughs and troubleshooting tips, refer to
-[`docs/running-the-filler.md`](docs/running-the-filler.md).
+Stop:
+
+```bash
+docker compose down
+```
+
+## Configuration
+
+The filler requires:
+
+- MongoDB for state persistence
+- EVM RPC endpoints (Base Sepolia, Ethereum Sepolia)
+- Aztec RPC endpoint
+- Funded accounts on both chains
+
+See the [Filler Guide](../../docs/filler.md) for complete configuration options.
+
+## Documentation
+
+- [Full Filler Guide](../../docs/filler.md)
+- [Deployment Guide](../../docs/deployment.md)

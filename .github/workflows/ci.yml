@@ -24,7 +24,7 @@ jobs:
       run: |
         curl -s https://install.aztec.network | bash
         export PATH="$PATH:/home/runner/.aztec/bin"
-        aztec-up 3.0.0-devnet.20251212
+        aztec-up 3.0.0-devnet.6-patch.1
         echo "/home/runner/.aztec/bin" >> $GITHUB_PATH
 
     - name: Install dependencies
@@ -51,7 +51,7 @@ jobs:
         export FORWARDER_CHAIN_ID=11155111
         export BEACON_API_URL=https://eth-sepoliabeacon.g.alchemy.com/v2/xxxx
         export EVM_L2_RPC_URL=https://sepolia.base.org
-        export AZTEC_RPC_URL=https://next.devnet.aztec-labs.com
+        export AZTEC_RPC_URL=https://devnet-6.aztec-labs.com/
         export AZTEC_PROVER_ENABLED=true
         export FORWARDER_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
         export MONGO_DB_URI=mongodb://localhost:27018
@@ -62,8 +62,8 @@ jobs:
         export MONGO_PORT=27017
         export EVM_WATCH_INTERVAL_TIME_MS=5000
         export AZTEC_WATCH_INTERVAL_TIME_MS=5000
-        export DEPLOYMENT_JSON_PATH=../../deployments/deploy_2026-01-18_21-39-54.json
-        export TOKENS_JSON_PATH=../../deployments/tokens_deploy_2026-01-18_23-09-43.json
+        export DEPLOYMENT_JSON_PATH=../../deployments/deploy_2026-01-29_16-47-42.json
+        export TOKENS_JSON_PATH=../../deployments/tokens_deploy_2026-01-29_16-49-15.json
         export OP_STACK_ANCHOR_REGISTRY_ADDRESS=0x0729957c92A1F50590A84cb2D65D761093f3f8eB
         export AZTEC_ROLLUP_CONTRACT_L1_ADDRESS=0x5d84b64b0b2f468df065d8cf01fff88a73238a13
         export AZTEC_SANDBOX=false

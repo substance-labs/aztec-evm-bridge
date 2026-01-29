@@ -1,11 +1,11 @@
+import "dotenv/config"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { createLogger } from "@aztec/foundation/log"
 import { TokenContract } from "@defi-wonderland/aztec-standards/artifacts/Token.js"
 
 import { getTestWallet, addAccountWithSecretKey } from "./utils.js"
 
-const [, , aztecSecretKey, aztecSalt, tokenAddress, accountAddress, rpcUrl = "https://next.devnet.aztec-labs.com"] =
-  process.argv
+const [, , aztecSecretKey, aztecSalt, tokenAddress, accountAddress, rpcUrl = process.env.AZTEC_RPC_URL] = process.argv
 
 const main = async () => {
   const logger = createLogger("check-balance")
@@ -51,6 +51,8 @@ const main = async () => {
   logger.info(`   Public Balance: ${publicBalance}`)
   logger.info(`   Private Balance: ${privateBalance}`)
   logger.info(`   Total Balance: ${BigInt(publicBalance) + BigInt(privateBalance)}`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

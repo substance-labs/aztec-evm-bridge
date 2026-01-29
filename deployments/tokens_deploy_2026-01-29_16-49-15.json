@@ -1,0 +1,9 @@
+{
+  "EVMToken": {
+    "address": "0xee760B35b916a4BaCe65b675f7bF2ec8866E2Be1",
+    "deployTx": "0xc0053870d83caf0e3bac41d21036d2e76dfd019270d287f458e05e6733db4984"
+  },
+  "AztecToken": {
+    "address": "0x0457dd722a6230ce1de4880a6f494ee21ed59b77edcb545c0858d7cc0254531a"
+  }
+}

@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { createLogger } from "@aztec/foundation/log"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
@@ -13,7 +14,7 @@ const [
   aztecSalt,
   tokenAddress,
   amount = "10000000000000000000", // 10 tokens by default
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
 ] = process.argv
 
 const main = async () => {
@@ -49,6 +50,8 @@ const main = async () => {
     })
 
   logger.info(`✅ ${amount} tokens successfully transferred to public balance`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

@@ -1,73 +1,73 @@
 # @substancelabs/aztec-evm-bridge-sdk
 
-> ⚠️ **Disclaimer**
->
-> This SDK is a **work in progress** and may undergo significant changes. Breaking changes may occur frequently.  
-> Use it at your own risk in production environments. Contributions and feedback are welcome as the project evolves.
+TypeScript SDK for bridging assets between Aztec and EVM chains using ERC-7683.
 
----
-
-## 📦 Installation
+## Installation
 
 ```bash
-npm install @substancelabs/aztec-evm-bridge-sdk
+npm install @substancelabs/aztec-evm-bridge-sdk viem
 ```
 
----
+## Quick Start
 
-## 🚀 Quick Start
-
-Here's a basic example showing how to initiate an order **from Aztec to Base**:
-
-```ts
+```typescript
 import { Bridge, aztecSepolia } from "@substancelabs/aztec-evm-bridge-sdk"
-import { AzguardClient } from "@azguardwallet/client"
-import { padHex } from "viem"
 import { baseSepolia } from "viem/chains"
-
-const azguardClient = new AzguardClient(/* your config */)
+import { padHex } from "viem"
 
 const bridge = await Bridge.create({
-  azguardClient: azguardClient,
-  evmProvider: wagmiClient,
+  aztecWallet: myWallet,
+  evmPrivateKey: "0x...",
 })
 
-const result = await bridge.openOrder(
-  {
-    chainIdIn: aztecSepolia.id,
-    chainIdOut: baseSepolia.id,
-    amountIn: 1000000n,
-    amountOut: 990000n,
-    tokenIn: "0x...",
-    tokenOut: "0x...",
-    recipient: padHex("0x123..."),
-    mode: "public",
-    data: padHex("0x"),
-  },
-  {
-    onOrderOpened: ({ orderId, transactionHash }) => {
-      console.log(`✅ Order ${orderId} opened: ${transactionHash}`)
-    },
-    onOrderFilled: ({ orderId, transactionHash }) => {
-      console.log(`💰 Order ${orderId} filled: ${transactionHash}`)
-    },
-  }
-)
+const result = await bridge.openOrder({
+  chainIdIn: aztecSepolia.id,
+  chainIdOut: baseSepolia.id,
+  amountIn: 1000000n,
+  amountOut: 990000n,
+  tokenIn: "0x...",
+  tokenOut: "0x...",
+  recipient: padHex("0x..."),
+  mode: "private",
+  data: padHex("0x"),
+})
 ```
 
-**📚 For comprehensive documentation including API reference, order flows, examples, and troubleshooting, see [DOCUMENTATION.md](./DOCUMENTATION.md).**
+## Scripts
 
----
+| Command | Description |
+| ------- | ----------- |
+| `yarn build` | Build the SDK |
+| `yarn test` | Run all tests |
+| `yarn test:node` | Run Node.js tests |
+| `yarn test:browser` | Run browser tests |
+| `yarn test:e2e` | Run E2E tests (requires filler running) |
+| `yarn test:browser:e2e` | Run browser E2E tests (requires filler running) |
+| `yarn test:coverage` | Run with coverage |
 
-## 🧪 Development
+## E2E Tests
+
+E2E tests require the filler service to be running. See the [Filler Guide](../../docs/filler.md) for setup instructions.
 
 ```bash
-# Build the SDK
-yarn build
+# Start the filler first
+cd packages/filler
+docker compose up -d
 
-# Run tests
-yarn test
-
-# Run tests with coverage
-yarn test:coverage
+# Then run SDK E2E tests
+cd packages/sdk
+yarn test:e2e
 ```
+
+## Features
+
+- ✅ Privacy-first transactions
+- ✅ Full TypeScript support
+- ✅ Event callbacks for progress tracking
+- ✅ Browser and Node.js compatible
+- ✅ ERC-7683 compliant
+
+## Documentation
+
+- [SDK Guide](../../docs/sdk.md) - Full API reference and examples
+- [Testing Guide](../../docs/testing.md)
