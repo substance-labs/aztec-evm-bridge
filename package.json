@@ -12,9 +12,11 @@
     "packages/e2e"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -A run build",
+    "copy:artifacts": "bash scripts/copy-aztec-artifacts.sh",
+    "build:aztec": "yarn workspace @substancelabs/aztec-gateway-7683 build",
+    "build": "yarn build:aztec && yarn copy:artifacts && yarn workspaces foreach -At --exclude @substancelabs/aztec-gateway-7683 run build",
     "clean": "yarn workspaces foreach -A run clean",
-    "test": "yarn workspaces foreach -A run test",
+    "test": "yarn workspaces foreach -A --exclude @substancelabs/e2e --exclude @substancelabs/deploy run test",
     "test:bridge": "yarn workspace @substancelabs/e2e test:bridge",
     "deploy:bridge": "yarn workspace @substancelabs/deploy deploy:bridge",
     "deploy:tokens": "yarn workspace @substancelabs/deploy deploy:tokens",
@@ -25,7 +27,7 @@
     "version": "changeset version",
     "release": "yarn build && changeset publish",
     "prepare": "husky",
-    "postinstall": "husky install",
+    "postinstall": "husky install && playwright install",
     "prepublishOnly": "pinst --disable",
     "postpublish": "pinst --enable"
   },
@@ -41,14 +43,19 @@
     "husky": "^9.1.7",
     "lint-staged": ">=10",
     "pinst": ">=2",
+    "playwright": "^1.50.0",
     "prettier": "^3.6.2",
+    "typescript": "^5.8.2",
     "typescript-eslint": "^8.39.0",
+    "vite": "^7.1.3",
+    "vite-plugin-node-polyfills": "0.24.0",
     "vitest": "4.0.16"
   },
   "lint-staged": {
     "*.{js,ts,json}": "prettier --write"
   },
   "resolutions": {
-    "@aztec/foundation": "3.0.0-nightly.20251212"
+    "@aztec/foundation": "3.0.0-devnet.6-patch.1",
+    "@azguardwallet/client": "0.7.0"
   }
 }

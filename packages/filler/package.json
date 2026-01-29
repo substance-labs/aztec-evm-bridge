@@ -22,15 +22,15 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
-    "@aztec/accounts": "3.0.0-devnet.20251212",
-    "@aztec/aztec.js": "3.0.0-devnet.20251212",
-    "@aztec/kv-store": "3.0.0-devnet.20251212",
-    "@aztec/noir-contracts.js": "3.0.0-devnet.20251212",
-    "@aztec/pxe": "3.0.0-devnet.20251212",
-    "@aztec/stdlib": "3.0.0-devnet.20251212",
+    "@aztec/accounts": "3.0.0-devnet.6-patch.1",
+    "@aztec/aztec.js": "3.0.0-devnet.6-patch.1",
+    "@aztec/kv-store": "3.0.0-devnet.6-patch.1",
+    "@aztec/noir-contracts.js": "3.0.0-devnet.6-patch.1",
+    "@aztec/pxe": "3.0.0-devnet.6-patch.1",
+    "@aztec/stdlib": "3.0.0-devnet.6-patch.1",
     "@chainsafe/persistent-merkle-tree": "^1.1.0",
     "@chainsafe/ssz": "^1.2.0",
-    "@defi-wonderland/aztec-standards": "0.0.0-94ba03f5",
+    "@defi-wonderland/aztec-standards": "3.0.0-devnet.6-patch.1",
     "@lodestar/types": "^1.35.0",
     "async-mutex": "^0.5.0",
     "dotenv": "^16.4.7",
@@ -39,6 +39,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/node": "^22.15.2",
     "@vitest/coverage-v8": "^4.0.15",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
@@ -47,6 +48,6 @@
   },
   "resolutions": {
     "jackspeak": "2.1.1",
-    "@aztec/foundation": "3.0.0-devnet.20251212"
+    "@aztec/foundation": "3.0.0-devnet.6-patch.1"
   }
 }
