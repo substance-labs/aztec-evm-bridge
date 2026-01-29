@@ -8,7 +8,7 @@ Before deploying, ensure you have:
 
 - **Node.js** (v20+) and **Yarn** (v4+) installed
 - **Foundry** (for EVM contract compilation and deployment)
-- **Aztec CLI** (`aztec-nargo` for Aztec contract compilation)
+- **Aztec CLI** (`aztec` for Aztec contract compilation)
 - Funded wallets on:
   - Ethereum Sepolia (for Forwarder deployment)
   - Base Sepolia (for L2Gateway deployment)

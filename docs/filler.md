@@ -273,11 +273,36 @@ Monitor these indicators:
 
 ## Troubleshooting
 
+### "Filler is catching up many blocks"
+
+If the filler logs show it's catching up from an old block (e.g., "Starting catch-up from 36377775, 591491 blocks behind"), you can reset the saved block position to start from the latest block:
+
+**Using Docker Compose:**
+
+```bash
+# Drop the chainState collection to reset block positions
+docker compose exec mongodb mongosh -u filler -p filler \
+  --authenticationDatabase admin \
+  --eval 'db.getSiblingDB("filler").chainState.drop()'
+
+# Restart the filler to start from latest block
+docker compose restart filler
+```
+
+**Using local MongoDB:**
+
+```bash
+mongosh "mongodb://localhost:27017" --eval 'db.getSiblingDB("filler").chainState.drop()'
+```
+
+After restarting, the filler will log: "No saved block found for chain X, will start from latest"
+
 ### "Watcher logs show no events"
 
 - Verify RPC URLs are correct
 - Check that gateway contracts are deployed at the configured addresses
 - Use `cast logs` to manually check for events on the explorer
+- Check if the filler is catching up from an old block (see above)
 
 ### "getProvenBlockNumber errors"
 
@@ -298,6 +323,18 @@ This is normal behavior when transactions are queued. The filler queues transact
 - Verify MongoDB is running: `docker ps`
 - Check connection string: `MONGO_DB_URI`
 - Verify credentials if using authentication
+
+**View MongoDB data:**
+
+```bash
+# Connect to MongoDB shell
+docker compose exec mongodb mongosh -u filler -p filler --authenticationDatabase admin
+
+# Inside mongosh:
+use filler
+db.orders.find()           # View orders
+db.chainState.find()       # View block sync state per chain
+```
 
 ### "Cannot read properties of undefined"
 

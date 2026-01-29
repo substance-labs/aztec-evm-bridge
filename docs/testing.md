@@ -270,6 +270,25 @@ yarn format
 - Ensure the filler is running and configured correctly
 - Check filler logs for errors
 - Verify contract addresses match between E2E config and filler config
+- Check if filler is catching up from an old block (see below)
+
+### "Filler is catching up old blocks"
+
+If E2E tests timeout waiting for orders to be filled, the filler may be catching up from an old saved block position. Check filler logs for messages like "Starting catch-up from block X, Y blocks behind".
+
+**Reset to start from latest block:**
+
+```bash
+cd packages/filler
+
+# Drop the chainState collection
+docker compose exec mongodb mongosh -u filler -p filler \
+  --authenticationDatabase admin \
+  --eval 'db.getSiblingDB("filler").chainState.drop()'
+
+# Restart filler
+docker compose restart filler
+```
 
 ### "Insufficient funds"
 
@@ -286,6 +305,15 @@ yarn format
 - Increase test timeout in Jest/Vitest config
 - Check network connectivity
 - Verify RPC endpoints are responsive
+- Check if the filler needs to catch up blocks (see above)
+
+### "Nonce too low" or transaction errors
+
+Transient nonce errors can occur when multiple transactions are submitted quickly. Usually resolving on retry:
+
+- Re-run the test - it often succeeds on the second attempt
+- Wait a few seconds between test runs if running manually
+- Check the Aztec RPC is responsive
 
 ### Browser tests fail
 
