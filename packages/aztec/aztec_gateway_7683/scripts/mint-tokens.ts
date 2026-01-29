@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { AztecAddress } from "@aztec/aztec.js/addresses"
 import { createLogger } from "@aztec/foundation/log"
 import { SponsoredFeePaymentMethod } from "@aztec/aztec.js/fee"
@@ -15,7 +16,7 @@ const [
   recipientAddress,
   amountPrivate = "1000000000000000000",
   amountPublic = "1000000000000000000",
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
 ] = process.argv
 
 const main = async () => {
@@ -80,6 +81,8 @@ const main = async () => {
   logger.info(`Final private balance: ${finalPrivateBalance.toString()}`)
 
   logger.info(`✅ All tokens successfully minted to ${recipientAddress}`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

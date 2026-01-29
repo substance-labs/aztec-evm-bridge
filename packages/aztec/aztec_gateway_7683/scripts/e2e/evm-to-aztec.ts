@@ -37,7 +37,7 @@ const [
   orderTypeArg,
   recipientSecretKey,
   recipientSalt,
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
 ] = process.argv
 
 const isPrivateOrder = orderTypeArg === "1"
@@ -312,6 +312,8 @@ async function main(): Promise<void> {
 
     await sleep(15000)
   }
+
+  process.exit(0)
 }
 
 main().catch((err) => {

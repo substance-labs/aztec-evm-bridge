@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { createLogger } from "@aztec/foundation/log"
 import { EthAddress } from "@aztec/aztec.js/addresses"
@@ -15,7 +16,7 @@ const [
   l2Gateway7683Address,
   l2Gateway7683Domain,
   forwarderAddress,
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
   deployWallet = "false",
 ] = process.argv
 
@@ -61,6 +62,8 @@ const main = async () => {
   await wallet.registerContract(gatewayInstance, AztecGateway7683Contract.artifact)
 
   logger.info(`gateway deployed: ${gateway.address.toString()}`)
+
+  process.exit(0)
 }
 
 main().catch((err) => {

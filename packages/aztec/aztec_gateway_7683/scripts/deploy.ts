@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { AztecGateway7683Contract } from "../target/AztecGateway7683.js"
 import { createLogger } from "@aztec/foundation/log"
 import { EthAddress } from "@aztec/aztec.js/addresses"
@@ -17,7 +18,7 @@ const [
   l2Gateway7683Address,
   l2Gateway7683Domain,
   forwarderAddress,
-  rpcUrl = "https://next.devnet.aztec-labs.com",
+  rpcUrl = process.env.AZTEC_RPC_URL,
   deployWallet = "false",
   deployToken = "false",
   tokenName = "Test Token",
@@ -104,6 +105,9 @@ const main = async () => {
   mkdirSync("deployments", { recursive: true })
   writeFileSync("deployments/deployment.json", JSON.stringify(deploymentAddresses, null, 2))
   logger.info("Deployment addresses saved to deployments/deployment.json")
+
+  // Explicitly exit to close any open handles (PXE connections, etc.)
+  process.exit(0)
 }
 
 main().catch((err) => {
