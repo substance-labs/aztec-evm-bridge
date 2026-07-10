@@ -57,5 +57,8 @@
   "resolutions": {
     "@aztec/foundation": "3.0.0-devnet.6-patch.1",
     "@azguardwallet/client": "0.7.0"
+  },
+  "dependencies": {
+    "foundry-gas-utils": "github:saifyoussuf/foundry-gas-utils"
   }
 }
